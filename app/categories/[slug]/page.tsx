@@ -2,10 +2,11 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { mockCategories, getArticlesByCategory } from "@/lib/mock-data"
+import { getCategoryBySlug, getArticlesByCategory } from "@/lib/db"
 import ArticleList from "@/components/articles/article-list"
 
 // Вложенный маршрут категории (Практика 3, 4: динамические и вложенные маршруты)
+// Практика 7: данные загружаются из локальной PostgreSQL через lib/db.ts
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>
@@ -13,13 +14,13 @@ interface CategoryPageProps {
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params
-  const category = mockCategories.find((c) => c.slug === slug)
+  const category = await getCategoryBySlug(slug)
 
   if (!category) {
     notFound()
   }
 
-  const articles = getArticlesByCategory(category.id)
+  const articles = await getArticlesByCategory(category.id)
 
   return (
     <div className="flex flex-col gap-6">

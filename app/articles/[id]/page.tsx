@@ -4,9 +4,10 @@ import { ArrowLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { getArticleById, getCategoryById, getUserById } from "@/lib/mock-data"
+import { getArticleById, getCategoryById, getUserById } from "@/lib/db"
 
-// Страница конкретной статьи — динамический маршрут (Практика 3: useParams / динамические маршруты)
+// Страница конкретной статьи — динамический маршрут (Практика 3: динамические маршруты)
+// Практика 7: данные загружаются из локальной PostgreSQL через lib/db.ts
 
 interface ArticlePageProps {
   params: Promise<{ id: string }>
@@ -14,14 +15,16 @@ interface ArticlePageProps {
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { id } = await params
-  const article = getArticleById(id)
+  const article = await getArticleById(id)
 
   if (!article) {
     notFound()
   }
 
-  const category = getCategoryById(article.categoryId)
-  const author = getUserById(article.authorId)
+  const [category, author] = await Promise.all([
+    getCategoryById(article.categoryId),
+    getUserById(article.authorId),
+  ])
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">

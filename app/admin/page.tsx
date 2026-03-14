@@ -7,11 +7,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { mockUsers, mockArticles } from "@/lib/mock-data"
+import { getAllUsers, getAllArticles } from "@/lib/db"
 import ProtectedRoute from "@/components/auth/protected-route"
 
 // Админ-панель (Практика 6: RBAC, Практика 8: разграничение прав)
-// Обернута в ProtectedRoute — при реализации Практики 6 доступ будет ограничен
+// Практика 7: данные загружаются из локальной PostgreSQL через lib/db.ts
 
 const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
   admin: "default",
@@ -25,7 +25,12 @@ const roleLabels: Record<string, string> = {
   viewer: "Читатель",
 }
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  const [users, articles] = await Promise.all([
+    getAllUsers(),
+    getAllArticles(),
+  ])
+
   return (
     <ProtectedRoute requiredRole="admin">
       <div className="flex flex-col gap-6">
@@ -51,7 +56,7 @@ export default function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockUsers.map((user) => (
+                {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium text-foreground">
                       {user.fullName}
@@ -86,7 +91,7 @@ export default function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockArticles.map((article) => (
+                {articles.map((article) => (
                   <TableRow key={article.id}>
                     <TableCell className="font-medium text-foreground">
                       {article.title}

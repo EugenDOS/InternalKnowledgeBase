@@ -1,26 +1,46 @@
 import { NextResponse } from "next/server"
-import { mockArticles } from "@/lib/mock-data"
+import { getAllArticles, createArticle } from "@/lib/db"
 
 // ==========================================
-// REST API для статей (Практика 7: CRUD, Express-подобные эндпоинты)
-// GET /api/articles — получение списка статей
-// POST /api/articles — создание статьи
-// В будущем: подключение PostgreSQL + Sequelize (Практика 7, 8)
+// REST API для статей (Практика 7: CRUD + PostgreSQL)
+// GET  /api/articles — список всех статей
+// POST /api/articles — создание новой статьи
 // ==========================================
 
 export async function GET() {
-  // TODO: Практика 7 — заменить на запрос к PostgreSQL через Sequelize
-  return NextResponse.json(mockArticles)
+  try {
+    const articles = await getAllArticles()
+    return NextResponse.json(articles)
+  } catch (err) {
+    console.error("GET /api/articles error:", err)
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
-  // TODO: Практика 7 — сохранение в PostgreSQL
-  const body = await request.json()
-  const newArticle = {
-    id: String(mockArticles.length + 1),
-    ...body,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+  try {
+    const body = await request.json()
+    const { title, content, excerpt, categoryId, authorId, tags } = body
+
+    if (!title || !categoryId || !authorId) {
+      return NextResponse.json(
+        { error: "Поля title, categoryId, authorId обязательны" },
+        { status: 400 }
+      )
+    }
+
+    const article = await createArticle({
+      title,
+      content: content ?? "",
+      excerpt: excerpt ?? "",
+      categoryId,
+      authorId,
+      tags: Array.isArray(tags) ? tags : [],
+    })
+
+    return NextResponse.json(article, { status: 201 })
+  } catch (err) {
+    console.error("POST /api/articles error:", err)
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 })
   }
-  return NextResponse.json(newArticle, { status: 201 })
 }

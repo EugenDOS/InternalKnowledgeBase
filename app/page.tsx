@@ -1,27 +1,34 @@
 import Link from "next/link"
 import { FileText, FolderOpen, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { mockArticles, mockCategories, mockUsers } from "@/lib/mock-data"
+import { getAllArticles, getAllCategories, getAllUsers } from "@/lib/db"
 
 // Главная страница — дашборд со статистикой (Практика 1, 2: компоненты React)
+// Практика 7: данные загружаются из локальной PostgreSQL через lib/db.ts
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [articles, categories, users] = await Promise.all([
+    getAllArticles(),
+    getAllCategories(),
+    getAllUsers(),
+  ])
+
   const stats = [
     {
       title: "Статьи",
-      value: mockArticles.length,
+      value: articles.length,
       icon: FileText,
       href: "/articles",
     },
     {
       title: "Категории",
-      value: mockCategories.length,
+      value: categories.length,
       icon: FolderOpen,
       href: "/categories",
     },
     {
       title: "Пользователи",
-      value: mockUsers.length,
+      value: users.length,
       icon: Users,
       href: "/admin",
     },
@@ -66,7 +73,7 @@ export default function HomePage() {
           Последние статьи
         </h2>
         <div className="flex flex-col gap-3">
-          {mockArticles.slice(0, 3).map((article) => (
+          {articles.slice(0, 3).map((article) => (
             <Link key={article.id} href={`/articles/${article.id}`}>
               <Card className="transition-colors hover:bg-accent">
                 <CardContent className="pt-4">

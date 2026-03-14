@@ -1,11 +1,14 @@
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { mockCategories } from "@/lib/mock-data"
+import { getAllCategories } from "@/lib/db"
 
 // Страница списка категорий (Практика 3: маршрутизация /categories)
+// Практика 7: данные загружаются из локальной PostgreSQL через lib/db.ts
 
-export default function CategoriesPage() {
+export default async function CategoriesPage() {
+  const categories = await getAllCategories()
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -16,7 +19,7 @@ export default function CategoriesPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {mockCategories.map((category) => (
+        {categories.map((category) => (
           <Link key={category.id} href={`/categories/${category.slug}`}>
             <Card className="transition-colors hover:bg-accent">
               <CardHeader className="pb-2">

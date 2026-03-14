@@ -1,9 +1,12 @@
-import { mockArticles } from "@/lib/mock-data"
+import { getAllArticles } from "@/lib/db"
 import ArticleList from "@/components/articles/article-list"
 
 // Страница списка статей (Практика 3: маршрутизация /articles)
+// Практика 7: данные загружаются из локальной PostgreSQL через lib/db.ts
 
-export default function ArticlesPage() {
+export default async function ArticlesPage() {
+  const articles = await getAllArticles()
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -12,7 +15,7 @@ export default function ArticlesPage() {
           Все статьи корпоративной базы знаний
         </p>
       </div>
-      <ArticleList articles={mockArticles} />
+      <ArticleList articles={articles} />
     </div>
   )
 }
