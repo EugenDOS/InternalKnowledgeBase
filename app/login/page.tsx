@@ -109,15 +109,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Подсказка с тестовыми учётными данными */}
-            <div className="mt-4 rounded-md border border-border bg-muted/50 p-3">
-              <p className="mb-1.5 text-xs font-medium text-foreground">Тестовые аккаунты:</p>
-              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                <span>admin@company.ru / admin123 — Администратор</span>
-                <span>editor@company.ru / editor123 — Редактор</span>
-                <span>viewer@company.ru / viewer123 — Читатель</span>
-              </div>
-            </div>
+
           </CardContent>
         </Card>
 
