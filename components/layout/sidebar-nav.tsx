@@ -9,7 +9,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, FileText, FolderOpen, Shield, X } from "lucide-react"
+import { Home, FileText, FolderOpen, Shield, BookMarked, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAppSelector } from "@/store/hooks"
@@ -24,11 +24,14 @@ interface NavItem {
   requiredRole?: "admin" | "editor" | "viewer"
 }
 
+// Практика 8: навигация с RBAC — пункты фильтруются по роли
 const navItems: NavItem[] = [
   { href: "/", label: "Главная", icon: Home },
   { href: "/articles", label: "Статьи", icon: FileText },
   { href: "/categories", label: "Категории", icon: FolderOpen },
-  // Практика 6: Админ-панель скрыта для editor и viewer
+  // Практика 8: "Мои статьи" — для любого авторизованного пользователя
+  { href: "/my-articles", label: "Мои статьи", icon: BookMarked, requiredRole: "user" },
+  // Практика 8: "Админ-панель" — только для admin (полный доступ ко всем статьям)
   { href: "/admin", label: "Админ-панель", icon: Shield, requiredRole: "admin" },
 ]
 

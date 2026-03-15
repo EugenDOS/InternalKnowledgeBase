@@ -2,11 +2,13 @@
 // Redux Slice статей
 // Практика 5: Redux (Store, Reducers, Action Creators)
 // Практика 7: CRUD через HTTP-запросы к REST API (/api/articles)
+// Практика 8: RBAC — thunks передают x-user-id и x-user-role в заголовках
 // ==========================================
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
 import type { PayloadAction } from "@reduxjs/toolkit"
 import type { ArticlesState, Article } from "@/lib/types"
+import type { RootState } from "@/store/index"
 
 // --- Начальное состояние ---
 const initialState: ArticlesState = {
@@ -17,10 +19,24 @@ const initialState: ArticlesState = {
 }
 
 // ==========================================
+// Вспомогательная функция: строит заголовки с данными текущего пользователя
+// Практика 8: серверный RBAC читает x-user-id и x-user-role
+// ==========================================
+function authHeaders(state: RootState): HeadersInit {
+  const user = state.auth.user
+  if (!user) return { "Content-Type": "application/json" }
+  return {
+    "Content-Type": "application/json",
+    "x-user-id": user.id,
+    "x-user-role": user.role,
+  }
+}
+
+// ==========================================
 // Async Thunks — HTTP-запросы к REST API
 // ==========================================
 
-// GET /api/articles — загрузить все статьи
+// GET /api/articles — загрузить все статьи (публично, без заголовков)
 export const fetchArticlesThunk = createAsyncThunk<
   Article[],
   void,
@@ -48,15 +64,16 @@ export const fetchArticleByIdThunk = createAsyncThunk<
   return res.json() as Promise<Article>
 })
 
-// POST /api/articles — создать новую статью
+// POST /api/articles — создать статью
+// Практика 8: передаём x-user-id и x-user-role; сервер проверяет, что authorId === userId (для role=user)
 export const createArticleThunk = createAsyncThunk<
   Article,
   Omit<Article, "id" | "createdAt" | "updatedAt">,
-  { rejectValue: string }
->("articles/create", async (articleData, { rejectWithValue }) => {
+  { rejectValue: string; state: RootState }
+>("articles/create", async (articleData, { rejectWithValue, getState }) => {
   const res = await fetch("/api/articles", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(getState()),
     body: JSON.stringify(articleData),
   })
   if (!res.ok) {
@@ -67,14 +84,15 @@ export const createArticleThunk = createAsyncThunk<
 })
 
 // PUT /api/articles/:id — обновить статью
+// Практика 8: сервер проверяет ownership (admin — любая, user — только своя)
 export const updateArticleThunk = createAsyncThunk<
   Article,
   { id: string; data: Partial<Omit<Article, "id" | "createdAt" | "updatedAt">> },
-  { rejectValue: string }
->("articles/update", async ({ id, data }, { rejectWithValue }) => {
+  { rejectValue: string; state: RootState }
+>("articles/update", async ({ id, data }, { rejectWithValue, getState }) => {
   const res = await fetch(`/api/articles/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(getState()),
     body: JSON.stringify(data),
   })
   if (!res.ok) {
@@ -85,12 +103,16 @@ export const updateArticleThunk = createAsyncThunk<
 })
 
 // DELETE /api/articles/:id — удалить статью
+// Практика 8: сервер проверяет ownership (admin — любая, user — только своя)
 export const deleteArticleThunk = createAsyncThunk<
   string,
   string,
-  { rejectValue: string }
->("articles/delete", async (id, { rejectWithValue }) => {
-  const res = await fetch(`/api/articles/${id}`, { method: "DELETE" })
+  { rejectValue: string; state: RootState }
+>("articles/delete", async (id, { rejectWithValue, getState }) => {
+  const res = await fetch(`/api/articles/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(getState()),
+  })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     return rejectWithValue((data as { error?: string }).error ?? "Ошибка удаления статьи")

@@ -28,16 +28,15 @@ interface HeaderProps {
     onToggleSidebar: () => void
 }
 
+// Практика 8: две роли
 const roleLabels: Record<string, string> = {
     admin: "Администратор",
-    editor: "Редактор",
-    viewer: "Читатель",
+    user: "Пользователь",
 }
 
 const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
     admin: "default",
-    editor: "secondary",
-    viewer: "outline",
+    user: "secondary",
 }
 
 export default function Header({ onToggleSidebar }: HeaderProps) {

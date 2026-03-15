@@ -4,7 +4,7 @@
 
 // --- Пользователи и роли (Практика 6, 8: RBAC/ABAC) ---
 
-export type UserRole = "admin" | "editor" | "viewer"
+export type UserRole = "admin" | "user"
 
 export interface User {
   id: string

@@ -2,9 +2,15 @@ import { NextResponse } from "next/server"
 import { getAllArticles, createArticle } from "@/lib/db"
 
 // ==========================================
-// REST API для статей (Практика 7: CRUD + PostgreSQL)
-// GET  /api/articles — список всех статей
-// POST /api/articles — создание новой статьи
+// REST API для статей (Практика 7: CRUD, Практика 8: RBAC)
+// GET  /api/articles — список всех статей (публично)
+// POST /api/articles — создание (требует авторизации: любая роль)
+//
+// Практика 8 — серверный RBAC:
+//   Клиент передаёт заголовки:
+//     x-user-id   — id текущего пользователя
+//     x-user-role — роль текущего пользователя ("admin" | "user")
+//   Сервер проверяет наличие заголовков для мутирующих методов.
 // ==========================================
 
 export async function GET() {
@@ -19,6 +25,17 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    // Практика 8: проверяем наличие авторизации
+    const userId = request.headers.get("x-user-id")
+    const userRole = request.headers.get("x-user-role")
+
+    if (!userId || !userRole) {
+      return NextResponse.json(
+        { error: "Требуется авторизация" },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     const { title, content, excerpt, categoryId, authorId, tags } = body
 
@@ -26,6 +43,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Поля title, categoryId, authorId обязательны" },
         { status: 400 }
+      )
+    }
+
+    // Практика 8: user может создавать статьи только от своего имени
+    if (userRole !== "admin" && authorId !== userId) {
+      return NextResponse.json(
+        { error: "Нет прав: нельзя создавать статьи от имени другого пользователя" },
+        { status: 403 }
       )
     }
 

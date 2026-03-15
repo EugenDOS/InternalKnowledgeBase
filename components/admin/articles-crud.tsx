@@ -1,13 +1,15 @@
 "use client"
 
 // ==========================================
-// ArticlesCrud — клиентский компонент управления статьями
-// Практика 7: все операции с БД выполняются через HTTP-запросы к REST API:
-//   GET    /api/articles        — загрузить список
-//   POST   /api/articles        — создать статью
-//   PUT    /api/articles/:id    — обновить статью
-//   DELETE /api/articles/:id    — удалить статью
-// Redux async thunks отправляют эти запросы и обновляют Store
+// ArticlesCrud — управление статьями с RBAC
+// Практика 7: все операции через HTTP к REST API
+// Практика 8: разграничение прав по ролям
+//
+//   admin — видит ВСЕ статьи, редактирует и удаляет любую
+//   user  — видит только СВОИ статьи, редактирует и удаляет только их
+//
+// Серверная проверка: API-маршруты дополнительно верифицируют ownership
+// по заголовкам x-user-id / x-user-role (двойная защита).
 // ==========================================
 
 import { useEffect, useState } from "react"
@@ -19,6 +21,7 @@ import {
   deleteArticleThunk,
   clearError,
 } from "@/store/slices/articles-slice"
+import { isOwnerOrAdmin } from "@/lib/auth"
 import type { Article, Category, User } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,7 +50,7 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Pencil, Trash2, Plus } from "lucide-react"
+import { Pencil, Trash2, Plus, Lock } from "lucide-react"
 
 interface ArticlesCrudProps {
   categories: Category[]
@@ -75,20 +78,34 @@ const EMPTY_FORM: ArticleFormData = {
 export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
   const dispatch = useAppDispatch()
   const { items: articles, isLoading, error } = useAppSelector((s) => s.articles)
+  const auth = useAppSelector((s) => s.auth)
+  const currentUser = auth.user
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ArticleFormData>(EMPTY_FORM)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
-  // При монтировании — HTTP GET /api/articles через Redux thunk
+  // При монтировании — HTTP GET /api/articles
   useEffect(() => {
     dispatch(fetchArticlesThunk())
   }, [dispatch])
 
+  // Практика 8: фильтрация статей по роли
+  //   admin — все статьи
+  //   user  — только свои
+  const visibleArticles =
+    currentUser?.role === "admin"
+      ? articles
+      : articles.filter((a) => a.authorId === currentUser?.id)
+
   function openCreate() {
     setEditingId(null)
-    setForm(EMPTY_FORM)
+    // Практика 8: для user автоматически устанавливаем себя как автора
+    setForm({
+      ...EMPTY_FORM,
+      authorId: currentUser?.role === "user" ? (currentUser.id ?? "") : "",
+    })
     dispatch(clearError())
     setDialogOpen(true)
   }
@@ -114,7 +131,6 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
       .filter(Boolean)
 
     if (editingId) {
-      // HTTP PUT /api/articles/:id
       await dispatch(
         updateArticleThunk({
           id: editingId,
@@ -129,7 +145,6 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
         })
       )
     } else {
-      // HTTP POST /api/articles
       await dispatch(
         createArticleThunk({
           title: form.title,
@@ -145,7 +160,6 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
   }
 
   async function handleDelete(id: string) {
-    // HTTP DELETE /api/articles/:id
     await dispatch(deleteArticleThunk(id))
     setDeleteConfirmId(null)
   }
@@ -153,11 +167,26 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
   const categoryName = (id: string) =>
     categories.find((c) => c.id === id)?.name ?? id
 
+  const authorName = (id: string) =>
+    users.find((u) => u.id === id)?.fullName ?? id
+
+  const isAdmin = currentUser?.role === "admin"
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Статьи</h2>
-        <Button size="sm" className="gap-2" onClick={openCreate}>
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-lg font-semibold text-foreground">
+            {isAdmin ? "Все статьи" : "Мои статьи"}
+          </h2>
+          {/* Практика 8: пояснение роли пользователя */}
+          <p className="text-xs text-muted-foreground">
+            {isAdmin
+              ? "Роль: Администратор — полный доступ ко всем статьям"
+              : "Роль: Пользователь — управление только своими статьями"}
+          </p>
+        </div>
+        <Button size="sm" className="gap-2" onClick={openCreate} disabled={!currentUser}>
           <Plus className="h-4 w-4" />
           Добавить статью
         </Button>
@@ -175,67 +204,91 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
             <TableRow>
               <TableHead>Название</TableHead>
               <TableHead>Категория</TableHead>
+              {isAdmin && <TableHead>Автор</TableHead>}
               <TableHead>Теги</TableHead>
               <TableHead>Обновлено</TableHead>
               <TableHead className="w-24 text-right">Действия</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && articles.length === 0 ? (
+            {isLoading && visibleArticles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-muted-foreground">
                   Загрузка...
                 </TableCell>
               </TableRow>
-            ) : articles.length === 0 ? (
+            ) : visibleArticles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  Статей пока нет
+                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-muted-foreground">
+                  {isAdmin ? "Статей пока нет" : "У вас ещё нет статей"}
                 </TableCell>
               </TableRow>
             ) : (
-              articles.map((article) => (
-                <TableRow key={article.id}>
-                  <TableCell className="font-medium text-foreground">
-                    {article.title}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {categoryName(article.categoryId)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {article.tags.slice(0, 2).map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(article.updatedAt).toLocaleDateString("ru-RU")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEdit(article)}
-                        aria-label="Редактировать"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteConfirmId(article.id)}
-                        aria-label="Удалить"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+              visibleArticles.map((article) => {
+                // Практика 8: проверяем право на редактирование/удаление
+                const canEdit = isOwnerOrAdmin(auth, article.authorId)
+
+                return (
+                  <TableRow key={article.id}>
+                    <TableCell className="font-medium text-foreground">
+                      {article.title}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {categoryName(article.categoryId)}
+                    </TableCell>
+                    {/* Практика 8: колонка автора только для admin */}
+                    {isAdmin && (
+                      <TableCell className="text-muted-foreground">
+                        {authorName(article.authorId)}
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {article.tags.slice(0, 2).map((tag) => (
+                          <Badge key={tag} variant="secondary" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(article.updatedAt).toLocaleDateString("ru-RU")}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {canEdit ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEdit(article)}
+                              aria-label="Редактировать"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteConfirmId(article.id)}
+                              aria-label="Удалить"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        ) : (
+                          // Практика 8: чужая статья — показываем иконку замка
+                          <span
+                            className="flex items-center justify-center h-8 w-8 text-muted-foreground"
+                            title="Нет прав на редактирование чужой статьи"
+                          >
+                            <Lock className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>
@@ -299,30 +352,48 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-foreground">Автор</label>
-              <Select
-                value={form.authorId}
-                onValueChange={(v) => setForm((f) => ({ ...f, authorId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите автора" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium text-foreground">
+                Автор
+                {/* Практика 8: user не может менять автора */}
+                {!isAdmin && (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    (только свои статьи)
+                  </span>
+                )}
+              </label>
+              {isAdmin ? (
+                <Select
+                  value={form.authorId}
+                  onValueChange={(v) => setForm((f) => ({ ...f, authorId: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите автора" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.fullName}
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ({u.role})
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                // Практика 8: для user поле автора заблокировано — только он сам
+                <Input
+                  value={currentUser?.fullName ?? ""}
+                  disabled
+                  className="opacity-70"
+                />
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">
                 Теги{" "}
-                <span className="text-muted-foreground font-normal">
-                  (через запятую)
-                </span>
+                <span className="text-muted-foreground font-normal">(через запятую)</span>
               </label>
               <Input
                 placeholder="react, typescript, api"
@@ -356,9 +427,11 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
             <DialogTitle>Удалить статью?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Это действие нельзя отменить. Статья будет удалена из базы данных через
-            HTTP DELETE-запрос к{" "}
-            <code className="font-mono text-xs">/api/articles/{deleteConfirmId}</code>.
+            Статья будет безвозвратно удалена из базы данных. Запрос{" "}
+            <code className="font-mono text-xs">
+              DELETE /api/articles/{deleteConfirmId}
+            </code>{" "}
+            выполняется с проверкой прав на сервере.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>

@@ -15,16 +15,15 @@ import ArticlesCrud from "@/components/admin/articles-crud"
 // Server Component: категории и пользователи загружаются через HTTP GET к API
 // Client Component ArticlesCrud выполняет GET/POST/PUT/DELETE через Redux async thunks
 
+// Практика 8: только две роли — admin и user
 const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
   admin: "default",
-  editor: "secondary",
-  viewer: "outline",
+  user: "secondary",
 }
 
 const roleLabels: Record<string, string> = {
   admin: "Администратор",
-  editor: "Редактор",
-  viewer: "Читатель",
+  user: "Пользователь",
 }
 
 export default async function AdminPage() {
