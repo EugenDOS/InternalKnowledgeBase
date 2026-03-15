@@ -13,7 +13,8 @@ import { Home, FileText, FolderOpen, Shield, BookMarked, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAppSelector } from "@/store/hooks"
-import { hasRole } from "@/lib/auth"
+import { hasRole, isAuthenticated } from "@/lib/auth"
+import type { UserRole } from "@/lib/types"
 
 // Описание навигационного пункта
 interface NavItem {
@@ -21,7 +22,9 @@ interface NavItem {
   label: string
   icon: React.ElementType
   // Если указана requiredRole — пункт виден только пользователям с этой ролью (RBAC)
-  requiredRole?: "admin" | "editor" | "viewer"
+  // Если requiresAuth: true — пункт виден любому авторизованному пользователю
+  requiredRole?: UserRole
+  requiresAuth?: boolean
 }
 
 // Практика 8: навигация с RBAC — пункты фильтруются по роли
@@ -29,8 +32,8 @@ const navItems: NavItem[] = [
   { href: "/", label: "Главная", icon: Home },
   { href: "/articles", label: "Статьи", icon: FileText },
   { href: "/categories", label: "Категории", icon: FolderOpen },
-  // Практика 8: "Мои статьи" — для любого авторизованного пользователя
-  { href: "/my-articles", label: "Мои статьи", icon: BookMarked, requiredRole: "user" },
+  // Практика 8: "Мои статьи" — для любого авторизованного (user и admin)
+  { href: "/my-articles", label: "Мои статьи", icon: BookMarked, requiresAuth: true },
   // Практика 8: "Админ-панель" — только для admin (полный доступ ко всем статьям)
   { href: "/admin", label: "Админ-панель", icon: Shield, requiredRole: "admin" },
 ]
@@ -46,10 +49,15 @@ export default function SidebarNav({ open, onClose }: SidebarNavProps) {
   // useSelector: считываем только срез auth для RBAC-фильтрации (Практика 5, 6)
   const auth = useAppSelector((state) => state.auth)
 
-  // Фильтруем пункты меню по роли текущего пользователя (Практика 6: RBAC)
+  // Практика 8: фильтрация навигации по ролям
+  const authenticated = isAuthenticated(auth)
   const visibleItems = navItems.filter((item) => {
-    if (!item.requiredRole) return true
-    return hasRole(auth, item.requiredRole)
+    // Пункт только для залогиненных (любая роль)
+    if (item.requiresAuth) return authenticated
+    // Пункт требует конкретной роли (с учётом иерархии)
+    if (item.requiredRole) return hasRole(auth, item.requiredRole)
+    // Публичный пункт
+    return true
   })
 
   return (
