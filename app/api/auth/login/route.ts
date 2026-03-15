@@ -9,11 +9,16 @@ import { NextResponse } from "next/server"
 import { getUserByEmail } from "@/lib/db"
 
 // Демонстрационные пароли (в production заменить на bcrypt-хэши в БД)
-// Практика 8: две роли — admin и user
+// Практика 8: две роли — admin и user.
+// Поддерживаются оба варианта email: до и после применения migrate-rbac.sql
 const DEMO_PASSWORDS: Record<string, string> = {
-  "admin@company.ru": "admin123",
-  "user1@company.ru": "user123",
-  "user2@company.ru": "user123",
+  "admin@company.ru":  "admin123",
+  // после migrate-rbac.sql
+  "user1@company.ru":  "user123",
+  "user2@company.ru":  "user123",
+  // до migrate-rbac.sql (исходный seed из migrate.sql)
+  "editor@company.ru": "user123",
+  "viewer@company.ru": "user123",
 }
 
 export async function POST(request: Request) {

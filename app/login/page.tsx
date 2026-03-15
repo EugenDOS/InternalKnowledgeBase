@@ -109,15 +109,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Практика 8: тестовые аккаунты с двумя ролями */}
-            <div className="mt-4 rounded-md border border-border bg-muted/50 p-3">
-              <p className="mb-1.5 text-xs font-medium text-foreground">Тестовые аккаунты:</p>
-              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                <span>admin@company.ru / admin123 — Администратор (все права)</span>
-                <span>user1@company.ru / user123 — Пользователь (только свои статьи)</span>
-                <span>user2@company.ru / user123 — Пользователь (только свои статьи)</span>
-              </div>
-            </div>
+
           </CardContent>
         </Card>
 
