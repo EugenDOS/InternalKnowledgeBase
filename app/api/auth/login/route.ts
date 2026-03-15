@@ -6,16 +6,17 @@
 // ==========================================
 
 import { NextResponse } from "next/server"
-import { getUserByEmail } from "@/lib/db"
+import pool from "@/lib/db"
+import type { User } from "@/lib/types"
 
-// Демонстрационные пароли (в production заменить на bcrypt-хэши в БД)
-// Практика 8: две роли — admin и user.
-const DEMO_PASSWORDS: Record<string, string> = {
-  "admin@company.ru":  "admin123",
-  "user1@company.ru":  "user123",
-  "user2@company.ru":  "user123",
-  "editor@company.ru": "user123",
-  "viewer@company.ru": "user123",
+interface UserRow {
+  id: string
+  username: string
+  email: string
+  role: string
+  full_name: string
+  password_hash: string | null
+  created_at: Date
 }
 
 export async function POST(request: Request) {
@@ -25,19 +26,36 @@ export async function POST(request: Request) {
 
     if (!email || !password) {
       return NextResponse.json(
-          { error: "Email и пароль обязательны" },
-          { status: 400 }
+        { error: "Email и пароль обязательны" },
+        { status: 400 }
       )
     }
 
-    // Ищем пользователя в PostgreSQL
-    const user = await getUserByEmail(email)
+    // Ищем пользователя в PostgreSQL вместе с password_hash
+    // Практика 8: две роли — admin и user
+    const result = await pool.query<UserRow>(
+      "SELECT id, username, email, role, full_name, password_hash, created_at FROM users WHERE email = $1",
+      [email]
+    )
 
-    if (!user || DEMO_PASSWORDS[email] !== password) {
+    const row = result.rows[0]
+
+    if (!row || row.password_hash !== password) {
       return NextResponse.json(
-          { error: "Неверный email или пароль" },
-          { status: 401 }
+        { error: "Неверный email или пароль" },
+        { status: 401 }
       )
+    }
+
+    const user: User = {
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      role: row.role as User["role"],
+      fullName: row.full_name,
+      createdAt: row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : String(row.created_at),
     }
 
     // Возвращаем данные пользователя с ролью (admin | user)

@@ -1,13 +1,9 @@
 "use client"
 
 // ==========================================
-// ArticlesCrud — клиентский компонент управления статьями
-// Практика 7: все операции с БД выполняются через HTTP-запросы к REST API:
-//   GET    /api/articles        — загрузить список
-//   POST   /api/articles        — создать статью
-//   PUT    /api/articles/:id    — обновить статью
-//   DELETE /api/articles/:id    — удалить статью
-// Redux async thunks отправляют эти запросы и обновляют Store
+// MyArticlesCrud — управление статьями текущего пользователя (роль user)
+// Показывает и позволяет редактировать/удалять только свои статьи.
+// Создание новой статьи автоматически подставляет authorId из auth.
 // ==========================================
 
 import { useEffect, useState } from "react"
@@ -20,7 +16,7 @@ import {
   deleteArticleThunk,
   clearError,
 } from "@/store/slices/articles-slice"
-import type { Article, Category, User } from "@/lib/types"
+import type { Article, Category } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -50,9 +46,8 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Pencil, Trash2, Plus } from "lucide-react"
 
-interface ArticlesCrudProps {
+interface MyArticlesCrudProps {
   categories: Category[]
-  users: User[]
 }
 
 interface ArticleFormData {
@@ -60,7 +55,6 @@ interface ArticleFormData {
   content: string
   excerpt: string
   categoryId: string
-  authorId: string
   tags: string
 }
 
@@ -69,23 +63,27 @@ const EMPTY_FORM: ArticleFormData = {
   content: "",
   excerpt: "",
   categoryId: "",
-  authorId: "",
   tags: "",
 }
 
-export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
+export default function MyArticlesCrud({ categories }: MyArticlesCrudProps) {
   const dispatch = useAppDispatch()
-  const { items: articles, isLoading, error } = useAppSelector((s) => s.articles)
+  const { items: allArticles, isLoading, error } = useAppSelector((s) => s.articles)
+  const currentUser = useAppSelector((s) => s.auth.user)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ArticleFormData>(EMPTY_FORM)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
-  // При монтировании — HTTP GET /api/articles через Redux thunk
   useEffect(() => {
     dispatch(fetchArticlesThunk())
   }, [dispatch])
+
+  // Фильтруем только статьи текущего пользователя
+  const myArticles = currentUser
+    ? allArticles.filter((a) => a.authorId === currentUser.id)
+    : []
 
   function openCreate() {
     setEditingId(null)
@@ -101,7 +99,6 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
       content: article.content,
       excerpt: article.excerpt,
       categoryId: article.categoryId,
-      authorId: article.authorId,
       tags: article.tags.join(", "),
     })
     dispatch(clearError())
@@ -109,13 +106,13 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
   }
 
   async function handleSubmit() {
+    if (!currentUser) return
     const tags = form.tags
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean)
 
     if (editingId) {
-      // HTTP PUT /api/articles/:id
       await dispatch(
         updateArticleThunk({
           id: editingId,
@@ -124,20 +121,19 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
             content: form.content,
             excerpt: form.excerpt,
             categoryId: form.categoryId,
-            authorId: form.authorId,
             tags,
           },
         })
       )
     } else {
-      // HTTP POST /api/articles
       await dispatch(
         createArticleThunk({
           title: form.title,
           content: form.content,
           excerpt: form.excerpt,
           categoryId: form.categoryId,
-          authorId: form.authorId,
+          // authorId всегда равен id текущего пользователя
+          authorId: currentUser.id,
           tags,
         })
       )
@@ -146,7 +142,6 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
   }
 
   async function handleDelete(id: string) {
-    // HTTP DELETE /api/articles/:id
     await dispatch(deleteArticleThunk(id))
     setDeleteConfirmId(null)
   }
@@ -157,10 +152,10 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Статьи</h2>
+        <h2 className="text-lg font-semibold text-foreground">Мои публикации</h2>
         <Button size="sm" className="gap-2" onClick={openCreate}>
           <Plus className="h-4 w-4" />
-          Добавить статью
+          Новая статья
         </Button>
       </div>
 
@@ -182,20 +177,20 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && articles.length === 0 ? (
+            {isLoading && myArticles.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
                   Загрузка...
                 </TableCell>
               </TableRow>
-            ) : articles.length === 0 ? (
+            ) : myArticles.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  Статей пока нет
+                  У вас пока нет публикаций
                 </TableCell>
               </TableRow>
             ) : (
-              articles.map((article) => (
+              myArticles.map((article) => (
                 <TableRow key={article.id}>
                   <TableCell className="font-medium text-foreground">
                     <Link
@@ -305,30 +300,9 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-foreground">Автор</label>
-              <Select
-                value={form.authorId}
-                onValueChange={(v) => setForm((f) => ({ ...f, authorId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите автора" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">
                 Теги{" "}
-                <span className="text-muted-foreground font-normal">
-                  (через запятую)
-                </span>
+                <span className="text-muted-foreground font-normal">(через запятую)</span>
               </label>
               <Input
                 placeholder="react, typescript, api"
@@ -344,7 +318,7 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={isLoading || !form.title || !form.categoryId || !form.authorId}
+              disabled={isLoading || !form.title || !form.categoryId}
             >
               {isLoading ? "Сохранение..." : editingId ? "Сохранить" : "Создать"}
             </Button>
@@ -362,9 +336,7 @@ export default function ArticlesCrud({ categories, users }: ArticlesCrudProps) {
             <DialogTitle>Удалить статью?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Это действие нельзя отменить. Статья будет удалена из базы данных через
-            HTTP DELETE-запрос к{" "}
-            <code className="font-mono text-xs">/api/articles/{deleteConfirmId}</code>.
+            Это действие нельзя отменить. Статья будет безвозвратно удалена.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>

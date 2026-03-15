@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
   { href: "/articles", label: "Статьи", icon: FileText },
   { href: "/categories", label: "Категории", icon: FolderOpen },
   // Практика 8: "Мои статьи" — для любого авторизованного (user и admin)
-  { href: "/my-articles", label: "Мои статьи", icon: BookMarked, requiresAuth: true },
+  { href: "/my-articles", label: "Мои публикации", icon: BookMarked, requiresAuth: true },
   // Практика 8: "Админ-панель" — только для admin (полный доступ ко всем статьям)
   { href: "/admin", label: "Админ-панель", icon: Shield, requiredRole: "admin" },
 ]
