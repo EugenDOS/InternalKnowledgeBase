@@ -1,21 +1,21 @@
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { getAllCategories } from "@/lib/db"
+import type { Category } from "@/lib/types"
 
 // Страница списка категорий (Практика 3: маршрутизация /categories)
-// Практика 7: данные загружаются из локальной PostgreSQL через lib/db.ts
+// Практика 7: данные получаются через HTTP GET /api/categories
 
 export default async function CategoriesPage() {
-  const categories = await getAllCategories()
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
+  const res = await fetch(`${base}/api/categories`, { cache: "no-store" })
+  const categories: Category[] = res.ok ? await res.json() : []
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Категории</h1>
-        <p className="text-sm text-muted-foreground">
-          Категории статей базы знаний
-        </p>
+        <p className="text-sm text-muted-foreground">Категории статей базы знаний</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -23,14 +23,10 @@ export default async function CategoriesPage() {
           <Link key={category.id} href={`/categories/${category.slug}`}>
             <Card className="transition-colors hover:bg-accent">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base text-foreground">
-                  {category.name}
-                </CardTitle>
+                <CardTitle className="text-base text-foreground">{category.name}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {category.description}
-                </p>
+                <p className="text-sm text-muted-foreground">{category.description}</p>
                 <Badge variant="secondary" className="mt-3">
                   {category.articleCount}{" "}
                   {category.articleCount === 1 ? "статья" : "статей"}

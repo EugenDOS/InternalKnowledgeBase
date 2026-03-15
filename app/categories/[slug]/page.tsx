@@ -2,11 +2,11 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getCategoryBySlug, getArticlesByCategory } from "@/lib/db"
+import type { Article, Category } from "@/lib/types"
 import ArticleList from "@/components/articles/article-list"
 
 // Вложенный маршрут категории (Практика 3, 4: динамические и вложенные маршруты)
-// Практика 7: данные загружаются из локальной PostgreSQL через lib/db.ts
+// Практика 7: данные получаются через HTTP GET /api/categories/:slug
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>
@@ -14,13 +14,14 @@ interface CategoryPageProps {
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params
-  const category = await getCategoryBySlug(slug)
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
 
-  if (!category) {
-    notFound()
-  }
+  // HTTP GET /api/categories/:slug — возвращает { category, articles }
+  const res = await fetch(`${base}/api/categories/${slug}`, { cache: "no-store" })
+  if (!res.ok) notFound()
 
-  const articles = await getArticlesByCategory(category.id)
+  const { category, articles }: { category: Category; articles: Article[] } =
+    await res.json()
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,9 +34,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
       <div>
         <h1 className="text-2xl font-bold text-foreground">{category.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          {category.description}
-        </p>
+        <p className="text-sm text-muted-foreground">{category.description}</p>
       </div>
 
       <ArticleList articles={articles} />
