@@ -7,11 +7,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { mockUsers, mockArticles } from "@/lib/mock-data"
+import type { Category, User } from "@/lib/types"
 import ProtectedRoute from "@/components/auth/protected-route"
+import ArticlesCrud from "@/components/admin/articles-crud"
 
-// Админ-панель (Практика 6: RBAC, Практика 8: разграничение прав)
-// Обернута в ProtectedRoute — при реализации Практики 6 доступ будет ограничен
+// Админ-панель (Практика 6: RBAC, Практика 7: CRUD через HTTP)
+// Server Component: категории и пользователи загружаются через HTTP GET к API
+// Client Component ArticlesCrud выполняет GET/POST/PUT/DELETE через Redux async thunks
 
 const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
   admin: "default",
@@ -25,10 +27,21 @@ const roleLabels: Record<string, string> = {
   viewer: "Читатель",
 }
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
+
+  // HTTP GET /api/users и /api/categories
+  const [usersRes, categoriesRes] = await Promise.all([
+    fetch(`${base}/api/users`, { cache: "no-store" }),
+    fetch(`${base}/api/categories`, { cache: "no-store" }),
+  ])
+
+  const users: User[] = usersRes.ok ? await usersRes.json() : []
+  const categories: Category[] = categoriesRes.ok ? await categoriesRes.json() : []
+
   return (
     <ProtectedRoute requiredRole="admin">
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Админ-панель</h1>
           <p className="text-sm text-muted-foreground">
@@ -36,11 +49,9 @@ export default function AdminPage() {
           </p>
         </div>
 
-        {/* Таблица пользователей */}
+        {/* Таблица пользователей — только просмотр */}
         <div>
-          <h2 className="mb-3 text-lg font-semibold text-foreground">
-            Пользователи
-          </h2>
+          <h2 className="mb-3 text-lg font-semibold text-foreground">Пользователи</h2>
           <div className="rounded-md border border-border">
             <Table>
               <TableHeader>
@@ -51,17 +62,15 @@ export default function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockUsers.map((user) => (
+                {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium text-foreground">
                       {user.fullName}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {user.email}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant={roleBadgeVariant[user.role] || "outline"}>
-                        {roleLabels[user.role] || user.role}
+                      <Badge variant={roleBadgeVariant[user.role] ?? "outline"}>
+                        {roleLabels[user.role] ?? user.role}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -71,48 +80,8 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Таблица статей */}
-        <div>
-          <h2 className="mb-3 text-lg font-semibold text-foreground">
-            Статьи
-          </h2>
-          <div className="rounded-md border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Название</TableHead>
-                  <TableHead>Теги</TableHead>
-                  <TableHead>Обновлено</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockArticles.map((article) => (
-                  <TableRow key={article.id}>
-                    <TableCell className="font-medium text-foreground">
-                      {article.title}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {article.tags.slice(0, 2).map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(article.updatedAt).toLocaleDateString("ru-RU")}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+        {/* CRUD статей — клиентский компонент, все операции через HTTP */}
+        <ArticlesCrud categories={categories} users={users} />
       </div>
     </ProtectedRoute>
   )

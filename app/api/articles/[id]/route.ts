@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
-import { getArticleById } from "@/lib/mock-data"
+import { getArticleById, updateArticle, deleteArticle } from "@/lib/db"
 
 // ==========================================
-// REST API для одной статьи (Практика 7: CRUD)
-// GET    /api/articles/:id — получение статьи
+// REST API для одной статьи (Практика 7: CRUD + PostgreSQL)
+// GET    /api/articles/:id — получение статьи по id
 // PUT    /api/articles/:id — обновление статьи
 // DELETE /api/articles/:id — удаление статьи
 // ==========================================
@@ -13,32 +13,44 @@ interface RouteParams {
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
-  const { id } = await params
-  const article = getArticleById(id)
-  if (!article) {
-    return NextResponse.json({ error: "Статья не найдена" }, { status: 404 })
+  try {
+    const { id } = await params
+    const article = await getArticleById(id)
+    if (!article) {
+      return NextResponse.json({ error: "Статья не найдена" }, { status: 404 })
+    }
+    return NextResponse.json(article)
+  } catch (err) {
+    console.error("GET /api/articles/[id] error:", err)
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 })
   }
-  return NextResponse.json(article)
 }
 
 export async function PUT(request: Request, { params }: RouteParams) {
-  const { id } = await params
-  const article = getArticleById(id)
-  if (!article) {
-    return NextResponse.json({ error: "Статья не найдена" }, { status: 404 })
+  try {
+    const { id } = await params
+    const body = await request.json()
+    const updated = await updateArticle(id, body)
+    if (!updated) {
+      return NextResponse.json({ error: "Статья не найдена" }, { status: 404 })
+    }
+    return NextResponse.json(updated)
+  } catch (err) {
+    console.error("PUT /api/articles/[id] error:", err)
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 })
   }
-  // TODO: Практика 7 — обновление в PostgreSQL
-  const body = await request.json()
-  const updated = { ...article, ...body, updatedAt: new Date().toISOString() }
-  return NextResponse.json(updated)
 }
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
-  const { id } = await params
-  const article = getArticleById(id)
-  if (!article) {
-    return NextResponse.json({ error: "Статья не найдена" }, { status: 404 })
+  try {
+    const { id } = await params
+    const deleted = await deleteArticle(id)
+    if (!deleted) {
+      return NextResponse.json({ error: "Статья не найдена" }, { status: 404 })
+    }
+    return NextResponse.json({ message: "Статья удалена" })
+  } catch (err) {
+    console.error("DELETE /api/articles/[id] error:", err)
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 })
   }
-  // TODO: Практика 7 — удаление из PostgreSQL
-  return NextResponse.json({ message: "Статья удалена" })
 }

@@ -4,9 +4,10 @@ import { ArrowLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { getArticleById, getCategoryById, getUserById } from "@/lib/mock-data"
+import type { Article, Category, User } from "@/lib/types"
 
-// Страница конкретной статьи — динамический маршрут (Практика 3: useParams / динамические маршруты)
+// Страница конкретной статьи — динамический маршрут (Практика 3: динамические маршруты)
+// Практика 7: данные получаются через HTTP GET /api/articles/:id, /api/categories/:slug, /api/users
 
 interface ArticlePageProps {
   params: Promise<{ id: string }>
@@ -14,14 +15,24 @@ interface ArticlePageProps {
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { id } = await params
-  const article = getArticleById(id)
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
 
-  if (!article) {
-    notFound()
-  }
+  // HTTP GET /api/articles/:id
+  const articleRes = await fetch(`${base}/api/articles/${id}`, { cache: "no-store" })
+  if (!articleRes.ok) notFound()
+  const article: Article = await articleRes.json()
 
-  const category = getCategoryById(article.categoryId)
-  const author = getUserById(article.authorId)
+  // HTTP GET /api/categories и /api/users — для отображения имён
+  const [categoriesRes, usersRes] = await Promise.all([
+    fetch(`${base}/api/categories`, { cache: "no-store" }),
+    fetch(`${base}/api/users`, { cache: "no-store" }),
+  ])
+
+  const categories: Category[] = categoriesRes.ok ? await categoriesRes.json() : []
+  const users: User[] = usersRes.ok ? await usersRes.json() : []
+
+  const category = categories.find((c) => c.id === article.categoryId) ?? null
+  const author = users.find((u) => u.id === article.authorId) ?? null
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -35,16 +46,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4">
-            <h1 className="text-2xl font-bold text-foreground">
-              {article.title}
-            </h1>
+            <h1 className="text-2xl font-bold text-foreground">{article.title}</h1>
 
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               {category && <span>Категория: {category.name}</span>}
               {author && <span>Автор: {author.fullName}</span>}
               <span>
-                Обновлено:{" "}
-                {new Date(article.updatedAt).toLocaleDateString("ru-RU")}
+                Обновлено: {new Date(article.updatedAt).toLocaleDateString("ru-RU")}
               </span>
             </div>
 
