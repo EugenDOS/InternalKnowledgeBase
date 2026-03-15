@@ -9,7 +9,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, BookOpen, LogIn } from "lucide-react"
+import { BookOpen, LogIn, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -34,7 +34,7 @@ export default function LoginPage() {
   const isLoading = authState.auth.isLoading
   const error = authState.auth.error
 
-  // Если пользователь уже авторизован — редиректим на главную
+  // Редирект на главную при авторизации (уже вошёл или после успешного входа)
   useEffect(() => {
     if (authenticated) {
       router.replace("/")
@@ -50,75 +50,73 @@ export default function LoginPage() {
   }
 
   return (
-      <div className="flex min-h-full flex-col items-center justify-center gap-6 py-12">
-        <div className="flex items-center gap-2 text-foreground">
-          <BookOpen className="h-6 w-6 text-primary" />
-          <span className="text-lg font-semibold">База знаний</span>
-        </div>
-
-        <Card className="w-full max-w-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-center text-lg">Вход в систему</CardTitle>
-            <CardDescription className="text-center text-xs">
-              Используйте корпоративный email и пароль
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    placeholder="user@company.ru"
-                    autoComplete="email"
-                    {...register("email", {
-                      required: "Введите email",
-                      pattern: { value: /\S+@\S+\.\S+/, message: "Некорректный email" },
-                    })}
-                />
-                {errors.email && (
-                    <p className="text-xs text-destructive">{errors.email.message}</p>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="password">Пароль</Label>
-                <Input
-                    id="password"
-                    type="password"
-                    placeholder="Введите пароль"
-                    autoComplete="current-password"
-                    {...register("password", { required: "Введите пароль" })}
-                />
-                {errors.password && (
-                    <p className="text-xs text-destructive">{errors.password.message}</p>
-                )}
-              </div>
-
-              {/* Ошибка из Redux Store (loginThunk.rejected) */}
-              {error && (
-                  <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
-                  </p>
-              )}
-
-              <Button type="submit" className="w-full gap-2" disabled={isLoading}>
-                <LogIn className="h-4 w-4" />
-                {isLoading ? "Вход..." : "Войти"}
-              </Button>
-            </form>
-
-
-          </CardContent>
-        </Card>
-
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            На главную без входа
-          </Button>
-        </Link>
+    <div className="flex min-h-full flex-col items-center justify-center gap-6 py-12">
+      <div className="flex items-center gap-2 text-foreground">
+        <BookOpen className="h-6 w-6 text-primary" />
+        <span className="text-lg font-semibold">База знаний</span>
       </div>
+
+      <Card className="w-full max-w-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-center text-lg">Вход в систему</CardTitle>
+          <CardDescription className="text-center text-xs">
+            Используйте корпоративный email и пароль
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="user@company.ru"
+                autoComplete="email"
+                {...register("email", {
+                  required: "Введите email",
+                  pattern: { value: /\S+@\S+\.\S+/, message: "Некорректный email" },
+                })}
+              />
+              {errors.email && (
+                <p className="text-xs text-destructive">{errors.email.message}</p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="password">Пароль</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Введите пароль"
+                autoComplete="current-password"
+                {...register("password", { required: "Введите пароль" })}
+              />
+              {errors.password && (
+                <p className="text-xs text-destructive">{errors.password.message}</p>
+              )}
+            </div>
+
+            {/* Ошибка из Redux Store (loginThunk.rejected) */}
+            {error && (
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {error}
+              </p>
+            )}
+
+            <Button type="submit" className="w-full gap-2" disabled={isLoading}>
+              <LogIn className="h-4 w-4" />
+              {isLoading ? "Вход..." : "Войти"}
+            </Button>
+          </form>
+
+          <div className="mt-4 text-center text-xs text-muted-foreground">
+            Нет аккаунта?{" "}
+            <Link href="/register" className="text-primary underline-offset-4 hover:underline">
+              Зарегистрироваться
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

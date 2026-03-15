@@ -7,6 +7,7 @@
 // ==========================================
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
   fetchArticlesThunk,
@@ -192,7 +193,12 @@ export default function MyArticlesCrud({ categories }: MyArticlesCrudProps) {
               myArticles.map((article) => (
                 <TableRow key={article.id}>
                   <TableCell className="font-medium text-foreground">
-                    {article.title}
+                    <Link
+                      href={`/articles/${article.id}`}
+                      className="hover:underline hover:text-primary"
+                    >
+                      {article.title}
+                    </Link>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {categoryName(article.categoryId)}
