@@ -9,7 +9,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, FileText, FolderOpen, Shield, BookMarked, X } from "lucide-react"
+import { Home, FileText, FolderOpen, MessageSquare, Shield, BookMarked, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAppSelector } from "@/store/hooks"
@@ -32,6 +32,7 @@ const navItems: NavItem[] = [
   { href: "/", label: "Главная", icon: Home },
   { href: "/articles", label: "Статьи", icon: FileText },
   { href: "/categories", label: "Категории", icon: FolderOpen },
+  { href: "/dialogs", label: "Диалоги", icon: MessageSquare },
   // Практика 8: "Мои статьи" — для любого авторизованного (user и admin)
   { href: "/my-articles", label: "Мои публикации", icon: BookMarked, requiresAuth: true },
   // Практика 8: "Админ-панель" — только для admin (полный доступ ко всем статьям)

@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server"
 import pool from "@/lib/db"
+import { hashPassword } from "@/lib/server-auth"
 import type { User } from "@/lib/types"
 
 interface UserRow {
@@ -66,14 +67,14 @@ export async function POST(request: Request) {
       )
     }
 
+    const passwordHash = await hashPassword(password)
+
     // Создаём пользователя с ролью "user"
-    // В демо-режиме пароль хранится в DEMO_PASSWORDS на сервере входа.
-    // Здесь сохраняем пользователя в БД; для входа добавляем запись в runtime-таблицу.
     const { rows } = await pool.query<UserRow>(
       `INSERT INTO users (username, email, role, full_name, password_hash)
        VALUES ($1, $2, 'user', $3, $4)
        RETURNING *`,
-      [username, email, fullName, password]
+      [username, email, fullName, passwordHash]
     )
 
     const row = rows[0]

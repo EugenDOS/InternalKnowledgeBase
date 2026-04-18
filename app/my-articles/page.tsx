@@ -1,5 +1,8 @@
+import { redirect } from "next/navigation"
 import ProtectedRoute from "@/components/auth/protected-route"
 import MyArticlesCrud from "@/components/user/my-articles-crud"
+import { getAllCategories } from "@/lib/db"
+import { getAuthUserFromServer } from "@/lib/server-auth"
 import type { Category } from "@/lib/types"
 
 // Страница "Мои публикации" (Практика 8: RBAC — доступна любому авторизованному пользователю)
@@ -7,10 +10,13 @@ import type { Category } from "@/lib/types"
 // Client Component MyArticlesCrud показывает и управляет только статьями текущего пользователя.
 
 export default async function MyArticlesPage() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
+  const currentUser = await getAuthUserFromServer()
 
-  const categoriesRes = await fetch(`${base}/api/categories`, { cache: "no-store" })
-  const categories: Category[] = categoriesRes.ok ? await categoriesRes.json() : []
+  if (!currentUser) {
+    redirect("/login")
+  }
+
+  const categories: Category[] = await getAllCategories()
 
   return (
     <ProtectedRoute>

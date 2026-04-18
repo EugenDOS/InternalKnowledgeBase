@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getArticleById, updateArticle, deleteArticle } from "@/lib/db"
+import { getAuthUserFromRequest } from "@/lib/server-auth"
 
 // ==========================================
 // REST API для одной статьи (Практика 7: CRUD, Практика 8: RBAC)
@@ -10,22 +11,10 @@ import { getArticleById, updateArticle, deleteArticle } from "@/lib/db"
 // Практика 8 — серверный RBAC (ownership):
 //   admin  — может PUT/DELETE любой статьи
 //   user   — может PUT/DELETE только своей статьи (authorId === userId)
-//
-// Заголовки от клиента:
-//   x-user-id   — id текущего пользователя
-//   x-user-role — роль ("admin" | "user")
 // ==========================================
 
 interface RouteParams {
   params: Promise<{ id: string }>
-}
-
-// Вспомогательная функция: извлекает и проверяет auth-заголовки
-function getAuthHeaders(request: Request): { userId: string; userRole: string } | null {
-  const userId = request.headers.get("x-user-id")
-  const userRole = request.headers.get("x-user-role")
-  if (!userId || !userRole) return null
-  return { userId, userRole }
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
@@ -44,9 +33,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
-    // Практика 8: требуем авторизацию
-    const auth = getAuthHeaders(request)
-    if (!auth) {
+    const user = await getAuthUserFromRequest(request)
+    if (!user) {
       return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 })
     }
 
@@ -57,7 +45,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     // Практика 8: user редактирует только свою статью; admin — любую
-    if (auth.userRole !== "admin" && article.authorId !== auth.userId) {
+    if (user.role !== "admin" && article.authorId !== user.id) {
       return NextResponse.json(
           { error: "Нет прав: можно редактировать только свои статьи" },
           { status: 403 }
@@ -65,7 +53,22 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json()
-    const updated = await updateArticle(id, body)
+    if (user.role !== "admin" && body.authorId !== undefined && body.authorId !== user.id) {
+      return NextResponse.json(
+        { error: "Нет прав: нельзя менять автора статьи" },
+        { status: 403 }
+      )
+    }
+
+    const updated = await updateArticle(
+      id,
+      user.role === "admin"
+        ? body
+        : {
+            ...body,
+            authorId: user.id,
+          }
+    )
     return NextResponse.json(updated)
   } catch (err) {
     console.error("PUT /api/articles/[id] error:", err)
@@ -75,9 +78,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
-    // Практика 8: требуем авторизацию
-    const auth = getAuthHeaders(request)
-    if (!auth) {
+    const user = await getAuthUserFromRequest(request)
+    if (!user) {
       return NextResponse.json({ error: "Требуется авторизация" }, { status: 401 })
     }
 
@@ -88,7 +90,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     // Практика 8: user удаляет только свою статью; admin — любую
-    if (auth.userRole !== "admin" && article.authorId !== auth.userId) {
+    if (user.role !== "admin" && article.authorId !== user.id) {
       return NextResponse.json(
           { error: "Нет прав: можно удалять только свои статьи" },
           { status: 403 }

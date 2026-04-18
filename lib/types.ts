@@ -56,3 +56,11 @@ export interface ArticlesState {
   isLoading: boolean
   error: string | null
 }
+
+// --- Состояние пользовательского соглашения (Практика 5: Redux) ---
+
+export interface AgreementState {
+  isAccepted: boolean
+  isConfirmed: boolean
+  confirmedAt: string | null
+}

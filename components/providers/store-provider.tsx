@@ -10,8 +10,14 @@
 // нельзя напрямую использовать <Provider> внутри Server Component.
 
 import { Provider } from "react-redux"
+import AuthHydrator from "@/components/providers/auth-hydrator"
 import { store } from "@/store"
 
 export default function StoreProvider({ children }: { children: React.ReactNode }) {
-    return <Provider store={store}>{children}</Provider>
+    return (
+        <Provider store={store}>
+            <AuthHydrator />
+            {children}
+        </Provider>
+    )
 }

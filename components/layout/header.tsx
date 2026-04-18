@@ -7,6 +7,7 @@
 // ==========================================
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Search, BookOpen, User, Menu, LogOut, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,7 +21,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { logout } from "@/store/slices/auth-slice"
+import { logoutThunk } from "@/store/slices/auth-slice"
 import { isAuthenticated } from "@/lib/auth"
 import { useState } from "react"
 
@@ -41,6 +42,7 @@ const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
 
 export default function Header({ onToggleSidebar }: HeaderProps) {
     const dispatch = useAppDispatch()
+    const router = useRouter()
     const [searchQuery, setSearchQuery] = useState("")
 
     // useSelector: читаем только срез auth, не весь state (Практика 5)
@@ -49,8 +51,9 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
     const user = auth.user
 
     // useDispatch: отправляем action creator logout (Практика 5)
-    function handleLogout() {
-        dispatch(logout())
+    async function handleLogout() {
+        await dispatch(logoutThunk())
+        router.replace("/login")
     }
 
     return (

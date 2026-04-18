@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -10,6 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import type { Category, User } from "@/lib/types"
 import ProtectedRoute from "@/components/auth/protected-route"
 import ArticlesCrud from "@/components/admin/articles-crud"
+import { getAllCategories, getAllUsers } from "@/lib/db"
+import { getAuthUserFromServer } from "@/lib/server-auth"
 
 // Админ-панель (Практика 6: RBAC, Практика 7: CRUD через HTTP)
 // Server Component: категории и пользователи загружаются через HTTP GET к API
@@ -17,27 +20,29 @@ import ArticlesCrud from "@/components/admin/articles-crud"
 
 const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
   admin: "default",
-  editor: "secondary",
-  viewer: "outline",
+  user: "secondary",
 }
 
 const roleLabels: Record<string, string> = {
   admin: "Администратор",
-  editor: "Редактор",
-  viewer: "Читатель",
+  user: "Пользователь",
 }
 
 export default async function AdminPage() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
+  const currentUser = await getAuthUserFromServer()
 
-  // HTTP GET /api/users и /api/categories
-  const [usersRes, categoriesRes] = await Promise.all([
-    fetch(`${base}/api/users`, { cache: "no-store" }),
-    fetch(`${base}/api/categories`, { cache: "no-store" }),
+  if (!currentUser) {
+    redirect("/login")
+  }
+
+  if (currentUser.role !== "admin") {
+    redirect("/")
+  }
+
+  const [users, categories]: [User[], Category[]] = await Promise.all([
+    getAllUsers(),
+    getAllCategories(),
   ])
-
-  const users: User[] = usersRes.ok ? await usersRes.json() : []
-  const categories: Category[] = categoriesRes.ok ? await categoriesRes.json() : []
 
   return (
     <ProtectedRoute requiredRole="admin">

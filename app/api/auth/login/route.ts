@@ -7,6 +7,7 @@
 
 import { NextResponse } from "next/server"
 import pool from "@/lib/db"
+import { setAuthCookie, upgradeLegacyPasswordHash, verifyPassword } from "@/lib/server-auth"
 import type { User } from "@/lib/types"
 
 interface UserRow {
@@ -40,12 +41,18 @@ export async function POST(request: Request) {
 
     const row = result.rows[0]
 
-    if (!row || row.password_hash !== password) {
+    const passwordMatches = row
+      ? await verifyPassword(password, row.password_hash)
+      : false
+
+    if (!row || !passwordMatches) {
       return NextResponse.json(
         { error: "Неверный email или пароль" },
         { status: 401 }
       )
     }
+
+    await upgradeLegacyPasswordHash(row.id, password, row.password_hash)
 
     const user: User = {
       id: row.id,
@@ -59,8 +66,11 @@ export async function POST(request: Request) {
     }
 
     // Возвращаем данные пользователя с ролью (admin | user)
-    // Практика 8: роль используется клиентом для RBAC в UI и в заголовках x-user-role
-    return NextResponse.json({ user }, { status: 200 })
+    // Роль нужна клиенту для интерфейса, а сервер дополнительно проверяет cookie-сессию.
+    const response = NextResponse.json({ user }, { status: 200 })
+    setAuthCookie(response, user.id)
+
+    return response
   } catch (err) {
     console.error("POST /api/auth/login error:", err)
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 })

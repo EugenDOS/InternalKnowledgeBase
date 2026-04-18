@@ -52,17 +52,11 @@ export const fetchArticleByIdThunk = createAsyncThunk<
 export const createArticleThunk = createAsyncThunk<
   Article,
   Omit<Article, "id" | "createdAt" | "updatedAt">,
-  { rejectValue: string; state: { auth: { user: { id: string; role: string } | null } } }
->("articles/create", async (articleData, { rejectWithValue, getState }) => {
-  const user = getState().auth.user
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
-  if (user) {
-    headers["x-user-id"] = user.id
-    headers["x-user-role"] = user.role
-  }
+  { rejectValue: string }
+>("articles/create", async (articleData, { rejectWithValue }) => {
   const res = await fetch("/api/articles", {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(articleData),
   })
   if (!res.ok) {
@@ -76,17 +70,11 @@ export const createArticleThunk = createAsyncThunk<
 export const updateArticleThunk = createAsyncThunk<
   Article,
   { id: string; data: Partial<Omit<Article, "id" | "createdAt" | "updatedAt">> },
-  { rejectValue: string; state: { auth: { user: { id: string; role: string } | null } } }
->("articles/update", async ({ id, data }, { rejectWithValue, getState }) => {
-  const user = getState().auth.user
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
-  if (user) {
-    headers["x-user-id"] = user.id
-    headers["x-user-role"] = user.role
-  }
+  { rejectValue: string }
+>("articles/update", async ({ id, data }, { rejectWithValue }) => {
   const res = await fetch(`/api/articles/${id}`, {
     method: "PUT",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   })
   if (!res.ok) {
@@ -100,15 +88,9 @@ export const updateArticleThunk = createAsyncThunk<
 export const deleteArticleThunk = createAsyncThunk<
   string,
   string,
-  { rejectValue: string; state: { auth: { user: { id: string; role: string } | null } } }
->("articles/delete", async (id, { rejectWithValue, getState }) => {
-  const user = getState().auth.user
-  const headers: Record<string, string> = {}
-  if (user) {
-    headers["x-user-id"] = user.id
-    headers["x-user-role"] = user.role
-  }
-  const res = await fetch(`/api/articles/${id}`, { method: "DELETE", headers })
+  { rejectValue: string }
+>("articles/delete", async (id, { rejectWithValue }) => {
+  const res = await fetch(`/api/articles/${id}`, { method: "DELETE" })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     return rejectWithValue((data as { error?: string }).error ?? "Ошибка удаления статьи")

@@ -1,77 +1,101 @@
 import Link from "next/link"
-import { FileText, FolderOpen, Users } from "lucide-react"
+import { FileText, FolderOpen } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { Article, Category, User } from "@/lib/types"
-import HomeGuard from "@/components/layout/home-guard"
+import type { Article, Category } from "@/lib/types"
 
-// Главная страница — дашборд со статистикой
-// Практика 7: данные получаются через HTTP GET-запросы к REST API (/api/articles, /api/categories, /api/users)
-
-async function getStats() {
+async function getHomeData() {
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
 
-  const [articlesRes, categoriesRes, usersRes] = await Promise.all([
+  const [articlesRes, categoriesRes] = await Promise.all([
     fetch(`${base}/api/articles`, { cache: "no-store" }),
     fetch(`${base}/api/categories`, { cache: "no-store" }),
-    fetch(`${base}/api/users`, { cache: "no-store" }),
   ])
 
-  const [articles, categories, users]: [Article[], Category[], User[]] =
-    await Promise.all([
-      articlesRes.ok ? articlesRes.json() : [],
-      categoriesRes.ok ? categoriesRes.json() : [],
-      usersRes.ok ? usersRes.json() : [],
-    ])
+  const [articles, categories]: [Article[], Category[]] = await Promise.all([
+    articlesRes.ok ? articlesRes.json() : [],
+    categoriesRes.ok ? categoriesRes.json() : [],
+  ])
 
-  return { articles, categories, users }
+  return { articles, categories }
 }
 
-export default async function HomePage() {
-  const { articles, categories, users } = await getStats()
+const sections = [
+  {
+    title: "Статьи",
+    description: "Все материалы корпоративной базы знаний в одном разделе.",
+    href: "/articles",
+    icon: FileText,
+  },
+  {
+    title: "Категории",
+    description: "Разделы базы знаний для удобной навигации по темам.",
+    href: "/categories",
+    icon: FolderOpen,
+  },
+]
 
-  const stats = [
-    { title: "Статьи",       value: articles.length,   icon: FileText,  href: "/articles"   },
-    { title: "Категории",    value: categories.length, icon: FolderOpen, href: "/categories" },
-    { title: "Пользователи", value: users.length,      icon: Users,     href: "/admin"       },
-  ]
+export default async function HomePage() {
+  const { articles, categories } = await getHomeData()
+
+  const sectionCounts = {
+    "/articles": articles.length,
+    "/categories": categories.length,
+  }
 
   return (
-    <HomeGuard>
-      <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold text-foreground">Главная</h1>
+        <p className="text-sm text-muted-foreground">
+          Корпоративная база знаний для хранения и просмотра внутренних материалов.
+        </p>
+      </div>
+
+      <section className="grid gap-4 md:grid-cols-2">
+        {sections.map((section) => {
+          const Icon = section.icon
+          const count = sectionCounts[section.href as keyof typeof sectionCounts]
+
+          return (
+            <Link key={section.href} href={section.href}>
+              <Card className="h-full transition-colors hover:bg-accent">
+                <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
+                  <div className="space-y-1">
+                    <CardTitle className="text-base">{section.title}</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {section.description}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-secondary p-2 text-secondary-foreground">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-bold text-foreground">{count}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          )
+        })}
+      </section>
+
+      <section className="flex flex-col gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Главная</h1>
+          <h2 className="text-lg font-semibold text-foreground">Последние статьи</h2>
           <p className="text-sm text-muted-foreground">
-            Добро пожаловать в корпоративную базу знаний
+            Недавно добавленные материалы базы знаний.
           </p>
         </div>
 
-        {/* Карточки со статистикой */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {stats.map((stat) => {
-            const Icon = stat.icon
-            return (
-              <Link key={stat.title} href={stat.href}>
-                <Card className="transition-colors hover:bg-accent">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      {stat.title}
-                    </CardTitle>
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-bold text-foreground">{stat.value}</p>
-                  </CardContent>
-                </Card>
-              </Link>
-            )
-          })}
-        </div>
-
-        {/* Последние статьи */}
-        <div>
-          <h2 className="mb-3 text-lg font-semibold text-foreground">Последние статьи</h2>
-          <div className="flex flex-col gap-3">
-            {articles.slice(0, 3).map((article) => (
+        <div className="flex flex-col gap-3">
+          {articles.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground">Статьи пока не добавлены.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            articles.slice(0, 3).map((article) => (
               <Link key={article.id} href={`/articles/${article.id}`}>
                 <Card className="transition-colors hover:bg-accent">
                   <CardContent className="pt-4">
@@ -80,10 +104,10 @@ export default async function HomePage() {
                   </CardContent>
                 </Card>
               </Link>
-            ))}
-          </div>
+            ))
+          )}
         </div>
-      </div>
-    </HomeGuard>
+      </section>
+    </div>
   )
 }

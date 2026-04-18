@@ -1,22 +1,20 @@
 "use client"
 
-// ==========================================
-// Страница входа в систему
-// Практика 5: useSelector (чтение state), useDispatch (отправка actions)
-// Практика 6: loginThunk → API → Redux Store → редирект
-// ==========================================
-
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { BookOpen, LogIn, UserPlus } from "lucide-react"
+import AgreementDialog from "@/components/agreement/agreement-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { getDeviceOwnerProfile, hasAcceptedAgreementOnDevice, markAgreementAcceptedOnDevice, setDeviceOwnerProfile } from "@/lib/device-storage"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { loginThunk, clearError } from "@/store/slices/auth-slice"
+import { loginThunk, clearError, logoutThunk } from "@/store/slices/auth-slice"
+import { resetAgreement } from "@/store/slices/agreement-slice"
 import { isAuthenticated } from "@/lib/auth"
+import type { User } from "@/lib/types"
 import { useForm } from "react-hook-form"
 
 interface LoginFormValues {
@@ -27,26 +25,87 @@ interface LoginFormValues {
 export default function LoginPage() {
   const dispatch = useAppDispatch()
   const router = useRouter()
+  const [agreementOpen, setAgreementOpen] = useState(false)
+  const [pendingAgreementUser, setPendingAgreementUser] = useState<User | null>(null)
+  const [authFlowLocked, setAuthFlowLocked] = useState(false)
 
   // useSelector: читаем состояние auth из Redux Store (Практика 5)
-  const authState = useAppSelector((state) => state)
-  const authenticated = isAuthenticated(authState)
-  const isLoading = authState.auth.isLoading
-  const error = authState.auth.error
+  const auth = useAppSelector((state) => state.auth)
+  const authenticated = isAuthenticated(auth)
+  const isLoading = auth.isLoading
+  const error = auth.error
 
   // Редирект на главную при авторизации (уже вошёл или после успешного входа)
   useEffect(() => {
-    if (authenticated) {
+    if (authenticated && !authFlowLocked && !agreementOpen && !pendingAgreementUser) {
       router.replace("/")
     }
-  }, [authenticated, router])
+  }, [authenticated, authFlowLocked, agreementOpen, pendingAgreementUser, router])
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>()
 
+  function handleAgreementOpenChange(nextOpen: boolean) {
+    setAgreementOpen(nextOpen)
+
+    if (!nextOpen && pendingAgreementUser) {
+      void dispatch(logoutThunk()).finally(() => {
+        setPendingAgreementUser(null)
+        setAuthFlowLocked(false)
+      })
+    }
+  }
+
+  function handleAgreementConfirm() {
+    if (!pendingAgreementUser) return
+
+    markAgreementAcceptedOnDevice()
+
+    if (!getDeviceOwnerProfile()) {
+      setDeviceOwnerProfile({
+        id: pendingAgreementUser.id,
+        fullName: pendingAgreementUser.fullName,
+        email: pendingAgreementUser.email,
+        username: pendingAgreementUser.username,
+      })
+    }
+
+    setPendingAgreementUser(null)
+    setAuthFlowLocked(false)
+    setAgreementOpen(false)
+    router.replace("/")
+  }
+
   // useDispatch: отправляем action creator loginThunk (Практика 5)
-  function onSubmit(values: LoginFormValues) {
+  async function onSubmit(values: LoginFormValues) {
     dispatch(clearError())
-    dispatch(loginThunk({ email: values.email, password: values.password }))
+    setAuthFlowLocked(true)
+
+    const result = await dispatch(loginThunk({ email: values.email, password: values.password }))
+
+    if (loginThunk.fulfilled.match(result)) {
+      const user = result.payload
+
+      if (!hasAcceptedAgreementOnDevice()) {
+        dispatch(resetAgreement())
+        setPendingAgreementUser(user)
+        setAgreementOpen(true)
+        return
+      }
+
+      if (!getDeviceOwnerProfile()) {
+        setDeviceOwnerProfile({
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+          username: user.username,
+        })
+      }
+
+      router.replace("/")
+      return
+    }
+
+    setAuthFlowLocked(false)
   }
 
   return (
@@ -55,6 +114,13 @@ export default function LoginPage() {
         <BookOpen className="h-6 w-6 text-primary" />
         <span className="text-lg font-semibold">База знаний</span>
       </div>
+
+      <AgreementDialog
+        open={agreementOpen}
+        onOpenChange={handleAgreementOpenChange}
+        onConfirm={handleAgreementConfirm}
+        isSubmitting={isLoading}
+      />
 
       <Card className="w-full max-w-sm">
         <CardHeader className="pb-4">

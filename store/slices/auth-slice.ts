@@ -12,9 +12,23 @@ import type { AuthState, User } from "@/lib/types"
 const initialState: AuthState = {
     user: null,
     isAuthenticated: false,
-    isLoading: false,
+    isLoading: true,
     error: null,
 }
+
+export const restoreSessionThunk = createAsyncThunk<User | null>(
+    "auth/restoreSession",
+    async () => {
+        const res = await fetch("/api/auth/me")
+
+        if (!res.ok) {
+            return null
+        }
+
+        const data = (await res.json()) as { user: User }
+        return data.user
+    }
+)
 
 // --- Async Thunk: логин через API ---
 // Практика 6: отправляет запрос на /api/auth/login, получает User
@@ -38,6 +52,12 @@ export const loginThunk = createAsyncThunk<
     return data.user
 })
 
+export const logoutThunk = createAsyncThunk("auth/logout", async () => {
+    await fetch("/api/auth/logout", {
+        method: "POST",
+    })
+})
+
 // --- Slice ---
 const authSlice = createSlice({
     name: "auth",
@@ -48,6 +68,7 @@ const authSlice = createSlice({
         logout(state) {
             state.user = null
             state.isAuthenticated = false
+            state.isLoading = false
             state.error = null
         },
         // Action Creator: clearError — сброс ошибки
@@ -75,6 +96,25 @@ const authSlice = createSlice({
             .addCase(loginThunk.rejected, (state, action) => {
                 state.isLoading = false
                 state.error = action.payload ?? "Неизвестная ошибка"
+            })
+            .addCase(restoreSessionThunk.pending, (state) => {
+                state.isLoading = true
+            })
+            .addCase(restoreSessionThunk.fulfilled, (state, action) => {
+                state.isLoading = false
+                state.user = action.payload
+                state.isAuthenticated = action.payload !== null
+            })
+            .addCase(restoreSessionThunk.rejected, (state) => {
+                state.isLoading = false
+                state.user = null
+                state.isAuthenticated = false
+            })
+            .addCase(logoutThunk.fulfilled, (state) => {
+                state.user = null
+                state.isAuthenticated = false
+                state.isLoading = false
+                state.error = null
             })
     },
 })

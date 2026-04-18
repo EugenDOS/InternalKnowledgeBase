@@ -6,12 +6,14 @@
 import { configureStore } from "@reduxjs/toolkit"
 import authReducer from "./slices/auth-slice"
 import articlesReducer from "./slices/articles-slice"
+import agreementReducer from "./slices/agreement-slice"
 
 // Создаём единое хранилище (Store) с двумя редюсерами
 export const store = configureStore({
     reducer: {
         auth: authReducer,         // Практика 6: состояние аутентификации
         articles: articlesReducer, // Практика 5/7: состояние статей
+        agreement: agreementReducer, // Практика 5: пользовательское соглашение
     },
 })
 

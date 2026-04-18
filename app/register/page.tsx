@@ -1,20 +1,20 @@
 "use client"
 
-// ==========================================
-// Страница регистрации нового пользователя
-// ==========================================
-
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { BookOpen, UserPlus } from "lucide-react"
+import AgreementDialog from "@/components/agreement/agreement-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { getDeviceOwnerProfile, hasAcceptedAgreementOnDevice, markAgreementAcceptedOnDevice, setDeviceOwnerProfile } from "@/lib/device-storage"
+import { isAuthenticated } from "@/lib/auth"
+import type { User } from "@/lib/types"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { loginThunk, clearError } from "@/store/slices/auth-slice"
-import { isAuthenticated } from "@/lib/auth"
+import { resetAgreement } from "@/store/slices/agreement-slice"
 import { useForm } from "react-hook-form"
 
 interface RegisterFormValues {
@@ -30,16 +30,21 @@ export default function RegisterPage() {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [agreementOpen, setAgreementOpen] = useState(false)
+  const [pendingLogin, setPendingLogin] = useState<{
+    email: string
+    password: string
+    user: User
+  } | null>(null)
 
-  const authState = useAppSelector((state) => state)
-  const authenticated = isAuthenticated(authState)
+  const auth = useAppSelector((state) => state.auth)
+  const authenticated = isAuthenticated(auth)
 
-  // Если уже вошёл — на главную
   useEffect(() => {
-    if (authenticated) {
+    if (authenticated && !agreementOpen && !pendingLogin) {
       router.replace("/")
     }
-  }, [authenticated, router])
+  }, [authenticated, agreementOpen, pendingLogin, router])
 
   const {
     register,
@@ -49,6 +54,45 @@ export default function RegisterPage() {
   } = useForm<RegisterFormValues>()
 
   const password = watch("password")
+
+  async function finishLogin(email: string, passwordValue: string) {
+    dispatch(clearError())
+
+    const result = await dispatch(loginThunk({ email, password: passwordValue }))
+
+    if (loginThunk.fulfilled.match(result)) {
+      router.replace("/")
+    } else {
+      setServerError("Не удалось автоматически выполнить вход после регистрации.")
+    }
+  }
+
+  function handleAgreementOpenChange(nextOpen: boolean) {
+    setAgreementOpen(nextOpen)
+
+    if (!nextOpen) {
+      setPendingLogin(null)
+    }
+  }
+
+  async function handleAgreementConfirm() {
+    if (!pendingLogin) return
+
+    markAgreementAcceptedOnDevice()
+
+    if (!getDeviceOwnerProfile()) {
+      setDeviceOwnerProfile({
+        id: pendingLogin.user.id,
+        fullName: pendingLogin.user.fullName,
+        email: pendingLogin.user.email,
+        username: pendingLogin.user.username,
+      })
+    }
+
+    setAgreementOpen(false)
+    await finishLogin(pendingLogin.email, pendingLogin.password)
+    setPendingLogin(null)
+  }
 
   async function onSubmit(values: RegisterFormValues) {
     setServerError(null)
@@ -66,16 +110,39 @@ export default function RegisterPage() {
         }),
       })
 
-      const data = (await res.json()) as { user?: unknown; error?: string }
+      const data = (await res.json()) as { user?: User; error?: string }
 
       if (!res.ok) {
         setServerError(data.error ?? "Ошибка регистрации")
         return
       }
 
-      // После успешной регистрации сразу входим
-      dispatch(clearError())
-      await dispatch(loginThunk({ email: values.email, password: values.password }))
+      if (!data.user) {
+        setServerError("Сервер не вернул данные нового пользователя.")
+        return
+      }
+
+      if (!hasAcceptedAgreementOnDevice()) {
+        dispatch(resetAgreement())
+        setPendingLogin({
+          email: values.email,
+          password: values.password,
+          user: data.user,
+        })
+        setAgreementOpen(true)
+        return
+      }
+
+      if (!getDeviceOwnerProfile()) {
+        setDeviceOwnerProfile({
+          id: data.user.id,
+          fullName: data.user.fullName,
+          email: data.user.email,
+          username: data.user.username,
+        })
+      }
+
+      await finishLogin(values.email, values.password)
     } catch {
       setServerError("Ошибка сети. Попробуйте ещё раз.")
     } finally {
@@ -90,6 +157,13 @@ export default function RegisterPage() {
         <span className="text-lg font-semibold">База знаний</span>
       </div>
 
+      <AgreementDialog
+        open={agreementOpen}
+        onOpenChange={handleAgreementOpenChange}
+        onConfirm={handleAgreementConfirm}
+        isSubmitting={isSubmitting}
+      />
+
       <Card className="w-full max-w-sm">
         <CardHeader className="pb-4">
           <CardTitle className="text-center text-lg">Создать аккаунт</CardTitle>
@@ -99,8 +173,6 @@ export default function RegisterPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-
-            {/* Полное имя */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="fullName">Полное имя</Label>
               <Input
@@ -118,7 +190,6 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* Имя пользователя */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="username">Имя пользователя</Label>
               <Input
@@ -140,7 +211,6 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* Email */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -158,7 +228,6 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* Пароль */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="password">Пароль</Label>
               <Input
@@ -176,7 +245,6 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* Подтверждение пароля */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="confirmPassword">Подтвердите пароль</Label>
               <Input
@@ -186,7 +254,7 @@ export default function RegisterPage() {
                 autoComplete="new-password"
                 {...register("confirmPassword", {
                   required: "Подтвердите пароль",
-                  validate: (val) => val === password || "Пароли не совпадают",
+                  validate: (value) => value === password || "Пароли не совпадают",
                 })}
               />
               {errors.confirmPassword && (
@@ -194,7 +262,6 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* Ошибка с сервера */}
             {serverError && (
               <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 {serverError}

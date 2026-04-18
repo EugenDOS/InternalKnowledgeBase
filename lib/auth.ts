@@ -30,7 +30,7 @@ export function isAuthenticated(auth: AuthState): boolean {
 
 /**
  * Практика 6: Проверяет наличие требуемой роли с учётом иерархии.
- * Если у пользователя роль "admin", он проходит проверку и на "editor", и на "viewer".
+ * Если у пользователя роль "admin", он проходит проверку и на "user".
  * @param auth     — срез state.auth из Redux Store
  * @param required — минимально необходимая роль
  */
