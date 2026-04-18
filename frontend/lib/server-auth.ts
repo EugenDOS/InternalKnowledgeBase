@@ -30,10 +30,11 @@ export async function getAuthUserFromRequest(request: Request): Promise<User | n
 
 export async function getAuthUserFromServer(): Promise<User | null> {
   const cookieStore = await cookies()
-  const cookieHeader = cookieStore
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join("; ")
+  const cookieName = process.env.BACKEND_AUTH_COOKIE_NAME ?? "knowledge-base-session"
+  const authCookie = cookieStore.get(cookieName)
+  const cookieHeader = authCookie
+    ? `${authCookie.name}=${encodeURIComponent(authCookie.value)}`
+    : undefined
 
   return getAuthUserByCookieHeader(cookieHeader)
 }

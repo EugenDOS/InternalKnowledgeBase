@@ -4,6 +4,10 @@ function normalizeBaseUrl(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value
 }
 
+function getBackendCookieName(): string {
+  return process.env.BACKEND_AUTH_COOKIE_NAME ?? "knowledge-base-session"
+}
+
 export function getBackendBaseUrl(): string {
   return normalizeBaseUrl(process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8080")
 }
@@ -15,18 +19,30 @@ export function getBackendUrl(path: string): string {
 
 export async function getServerCookieHeader(): Promise<string | undefined> {
   const cookieStore = await cookies()
-  const values = cookieStore.getAll()
+  const authCookie = cookieStore.get(getBackendCookieName())
 
-  if (values.length === 0) {
+  if (!authCookie) {
     return undefined
   }
 
-  return values.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ")
+  return `${authCookie.name}=${encodeURIComponent(authCookie.value)}`
+}
+
+function getBackendCookieHeaderFromRawCookieHeader(cookieHeader: string | null): string | undefined {
+  if (!cookieHeader) {
+    return undefined
+  }
+
+  const cookieName = getBackendCookieName()
+  const parts = cookieHeader.split(";").map((part) => part.trim())
+  const authCookie = parts.find((part) => part.startsWith(`${cookieName}=`))
+
+  return authCookie
 }
 
 export async function proxyToBackend(request: Request, path: string): Promise<Response> {
   const headers = new Headers()
-  const cookieHeader = request.headers.get("cookie")
+  const cookieHeader = getBackendCookieHeaderFromRawCookieHeader(request.headers.get("cookie"))
   const contentType = request.headers.get("content-type")
   const accept = request.headers.get("accept")
 
