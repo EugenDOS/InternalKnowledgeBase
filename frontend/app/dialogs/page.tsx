@@ -2,6 +2,8 @@ import DialogsPageView from "@/components/dialogs/dialogs-page-view"
 import { getAllArticles } from "@/lib/db"
 import { dialogThreads } from "@/lib/dialogs"
 
+export const dynamic = "force-dynamic"
+
 export default async function DialogsPage() {
   const articles = await getAllArticles()
 

@@ -3,6 +3,8 @@ import { FileText, FolderOpen } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Article, Category } from "@/lib/types"
 
+export const dynamic = "force-dynamic"
+
 async function getHomeData() {
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
 

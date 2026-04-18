@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import type { Article, Category } from "@/lib/types"
 import ArticleList from "@/components/articles/article-list"
 
+export const dynamic = "force-dynamic"
+
 // Вложенный маршрут категории (Практика 3, 4: динамические и вложенные маршруты)
 // Практика 7: данные получаются через HTTP GET /api/categories/:slug
 

@@ -30,4 +30,12 @@ public class UserService {
                 .map(ApiMapper::toUserDto)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public UserResponseDto getUserById(String id) {
+        UserEntity user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Пользователь не найден"));
+
+        return ApiMapper.toUserDto(user);
+    }
 }

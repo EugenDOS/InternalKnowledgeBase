@@ -1,6 +1,8 @@
 import type { Category } from "@/lib/types"
 import CategoryCard from "@/components/categories/category-card"
 
+export const dynamic = "force-dynamic"
+
 // Страница списка категорий (Практика 3: маршрутизация /categories)
 // Практика 7: данные получаются через HTTP GET /api/categories
 

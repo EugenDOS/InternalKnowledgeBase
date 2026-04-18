@@ -2,6 +2,7 @@ package ru.mirea.rksp.backend.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.mirea.rksp.backend.dto.user.UserResponseDto;
@@ -27,5 +28,10 @@ public class UserController {
     public List<UserResponseDto> getAll(HttpServletRequest request) {
         UserEntity currentUser = authService.requireCurrentUser(request);
         return userService.getAllUsers(currentUser);
+    }
+
+    @GetMapping("/{id}")
+    public UserResponseDto getById(@PathVariable String id) {
+        return userService.getUserById(id);
     }
 }

@@ -14,6 +14,8 @@ import ArticlesCrud from "@/components/admin/articles-crud"
 import { getAllCategories, getAllUsers } from "@/lib/db"
 import { getAuthUserFromServer } from "@/lib/server-auth"
 
+export const dynamic = "force-dynamic"
+
 // Админ-панель (Практика 6: RBAC, Практика 7: CRUD через HTTP)
 // Server Component: категории и пользователи загружаются через HTTP GET к API
 // Client Component ArticlesCrud выполняет GET/POST/PUT/DELETE через Redux async thunks

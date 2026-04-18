@@ -1,9 +1,5 @@
-import { NextResponse } from "next/server"
-import { clearAuthCookie } from "@/lib/server-auth"
+import { proxyToBackend } from "@/lib/backend-api"
 
-export async function POST() {
-  const response = NextResponse.json({ success: true })
-  clearAuthCookie(response)
-
-  return response
+export async function POST(request: Request) {
+  return proxyToBackend(request, "/api/auth/logout")
 }

@@ -2,6 +2,8 @@ import { getAllArticles, searchArticles } from "@/lib/db"
 import type { Article } from "@/lib/types"
 import ArticleList from "@/components/articles/article-list"
 
+export const dynamic = "force-dynamic"
+
 // Страница списка статей (Практика 3: маршрутизация /articles)
 // Практика 7: данные получаются через HTTP GET /api/articles
 

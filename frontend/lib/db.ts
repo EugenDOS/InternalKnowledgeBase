@@ -1,228 +1,136 @@
-// ==========================================
-// Практика 7: Подключение к локальной PostgreSQL через pg.Pool
-// Переменная DATABASE_URL задаётся в .env.local:
-//   DATABASE_URL=postgresql://postgres:password@localhost:5432/knowledge_base
-// ==========================================
+import "server-only"
 
-import { Pool } from "pg"
 import type { Article, Category, User } from "@/lib/types"
+import { getBackendUrl, getServerCookieHeader } from "@/lib/backend-api"
 
-// Синглтон-пул соединений — переиспользуется между запросами в Next.js
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-})
+async function fetchBackend(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers)
+  const cookieHeader = await getServerCookieHeader()
 
-export default pool
-
-// ==========================================
-// Вспомогательные типы для raw-строк из БД
-// ==========================================
-
-interface ArticleRow {
-  id: string
-  title: string
-  content: string
-  excerpt: string
-  category_id: string
-  author_id: string
-  tags: string[]
-  created_at: Date
-  updated_at: Date
-}
-
-interface CategoryRow {
-  id: string
-  name: string
-  slug: string
-  description: string
-  article_count: string | number
-}
-
-interface UserRow {
-  id: string
-  username: string
-  email: string
-  role: string
-  full_name: string
-  created_at: Date
-}
-
-// ==========================================
-// Конвертеры: snake_case (БД) → camelCase (приложение)
-// ==========================================
-
-function rowToArticle(row: ArticleRow): Article {
-  return {
-    id: row.id,
-    title: row.title,
-    content: row.content,
-    excerpt: row.excerpt,
-    categoryId: row.category_id,
-    authorId: row.author_id,
-    tags: row.tags ?? [],
-    createdAt: row.created_at instanceof Date
-      ? row.created_at.toISOString()
-      : String(row.created_at),
-    updatedAt: row.updated_at instanceof Date
-      ? row.updated_at.toISOString()
-      : String(row.updated_at),
+  if (cookieHeader && !headers.has("cookie")) {
+    headers.set("cookie", cookieHeader)
   }
-}
 
-function rowToCategory(row: CategoryRow): Category {
-  return {
-    id: row.id,
-    name: row.name,
-    slug: row.slug,
-    description: row.description,
-    articleCount: Number(row.article_count),
+  if (init.body && !headers.has("content-type")) {
+    headers.set("content-type", "application/json")
   }
+
+  return fetch(getBackendUrl(path), {
+    ...init,
+    headers,
+    cache: "no-store",
+  })
 }
 
-function rowToUser(row: UserRow): User {
-  return {
-    id: row.id,
-    username: row.username,
-    email: row.email,
-    role: row.role as User["role"],
-    fullName: row.full_name,
-    createdAt: row.created_at instanceof Date
-      ? row.created_at.toISOString()
-      : String(row.created_at),
-  }
+async function readJson<T>(response: Response): Promise<T> {
+  return response.json() as Promise<T>
 }
-
-// ==========================================
-// Запросы: Articles
-// ==========================================
 
 export async function getAllArticles(): Promise<Article[]> {
-  const { rows } = await pool.query<ArticleRow>(
-    "SELECT * FROM articles ORDER BY created_at DESC"
-  )
-  return rows.map(rowToArticle)
+  const response = await fetchBackend("/api/articles")
+  return response.ok ? readJson<Article[]>(response) : []
 }
 
 export async function getArticleById(id: string): Promise<Article | null> {
-  const { rows } = await pool.query<ArticleRow>(
-    "SELECT * FROM articles WHERE id = $1",
-    [id]
-  )
-  return rows[0] ? rowToArticle(rows[0]) : null
+  const response = await fetchBackend(`/api/articles/${id}`)
+
+  if (response.status === 404) {
+    return null
+  }
+
+  return response.ok ? readJson<Article>(response) : null
 }
 
 export async function getArticlesByCategory(categoryId: string): Promise<Article[]> {
-  const { rows } = await pool.query<ArticleRow>(
-    "SELECT * FROM articles WHERE category_id = $1 ORDER BY created_at DESC",
-    [categoryId]
-  )
-  return rows.map(rowToArticle)
+  const articles = await getAllArticles()
+  return articles.filter((article) => article.categoryId === categoryId)
 }
 
 export async function searchArticles(query: string): Promise<Article[]> {
-  const { rows } = await pool.query<ArticleRow>(
-    `SELECT * FROM articles
-     WHERE title ILIKE $1
-     ORDER BY created_at DESC`,
-    [`%${query}%`]
-  )
-  return rows.map(rowToArticle)
+  const searchParams = new URLSearchParams({ q: query })
+  const response = await fetchBackend(`/api/articles?${searchParams.toString()}`)
+  return response.ok ? readJson<Article[]>(response) : []
 }
+
 export async function createArticle(
   data: Omit<Article, "id" | "createdAt" | "updatedAt">
 ): Promise<Article> {
-  const { rows } = await pool.query<ArticleRow>(
-    `INSERT INTO articles (title, content, excerpt, category_id, author_id, tags)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING *`,
-    [data.title, data.content, data.excerpt, data.categoryId, data.authorId, data.tags]
-  )
-  return rowToArticle(rows[0])
+  const response = await fetchBackend("/api/articles", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    throw new Error("Не удалось создать статью")
+  }
+
+  return readJson<Article>(response)
 }
 
 export async function updateArticle(
   id: string,
   data: Partial<Omit<Article, "id" | "createdAt" | "updatedAt">>
 ): Promise<Article | null> {
-  const fields: string[] = []
-  const values: unknown[] = []
-  let idx = 1
+  const response = await fetchBackend(`/api/articles/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  })
 
-  if (data.title !== undefined)      { fields.push(`title = $${idx++}`);       values.push(data.title) }
-  if (data.content !== undefined)    { fields.push(`content = $${idx++}`);     values.push(data.content) }
-  if (data.excerpt !== undefined)    { fields.push(`excerpt = $${idx++}`);     values.push(data.excerpt) }
-  if (data.categoryId !== undefined) { fields.push(`category_id = $${idx++}`); values.push(data.categoryId) }
-  if (data.authorId !== undefined)   { fields.push(`author_id = $${idx++}`);   values.push(data.authorId) }
-  if (data.tags !== undefined)       { fields.push(`tags = $${idx++}`);        values.push(data.tags) }
+  if (response.status === 404) {
+    return null
+  }
 
-  if (fields.length === 0) return getArticleById(id)
+  if (!response.ok) {
+    throw new Error("Не удалось обновить статью")
+  }
 
-  values.push(id)
-  const { rows } = await pool.query<ArticleRow>(
-    `UPDATE articles SET ${fields.join(", ")} WHERE id = $${idx} RETURNING *`,
-    values
-  )
-  return rows[0] ? rowToArticle(rows[0]) : null
+  return readJson<Article>(response)
 }
 
 export async function deleteArticle(id: string): Promise<boolean> {
-  const { rowCount } = await pool.query(
-    "DELETE FROM articles WHERE id = $1",
-    [id]
-  )
-  return (rowCount ?? 0) > 0
+  const response = await fetchBackend(`/api/articles/${id}`, {
+    method: "DELETE",
+  })
+
+  return response.ok
 }
 
-// ==========================================
-// Запросы: Categories
-// ==========================================
-
 export async function getAllCategories(): Promise<Category[]> {
-  const { rows } = await pool.query<CategoryRow>(
-    "SELECT * FROM categories ORDER BY name"
-  )
-  return rows.map(rowToCategory)
+  const response = await fetchBackend("/api/categories")
+  return response.ok ? readJson<Category[]>(response) : []
 }
 
 export async function getCategoryById(id: string): Promise<Category | null> {
-  const { rows } = await pool.query<CategoryRow>(
-    "SELECT * FROM categories WHERE id = $1",
-    [id]
-  )
-  return rows[0] ? rowToCategory(rows[0]) : null
+  const categories = await getAllCategories()
+  return categories.find((category) => category.id === id) ?? null
 }
 
 export async function getCategoryBySlug(slug: string): Promise<Category | null> {
-  const { rows } = await pool.query<CategoryRow>(
-    "SELECT * FROM categories WHERE slug = $1",
-    [slug]
-  )
-  return rows[0] ? rowToCategory(rows[0]) : null
+  const response = await fetchBackend(`/api/categories/${slug}`)
+
+  if (response.status === 404) {
+    return null
+  }
+
+  if (!response.ok) {
+    return null
+  }
+
+  const data = await readJson<{ category: Category }>(response)
+  return data.category
 }
 
-// ==========================================
-// Запросы: Users
-// ==========================================
-
 export async function getAllUsers(): Promise<User[]> {
-  const { rows } = await pool.query<UserRow>(
-    "SELECT * FROM users ORDER BY created_at"
-  )
-  return rows.map(rowToUser)
+  const response = await fetchBackend("/api/users")
+  return response.ok ? readJson<User[]>(response) : []
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const { rows } = await pool.query<UserRow>(
-    "SELECT * FROM users WHERE id = $1",
-    [id]
-  )
-  return rows[0] ? rowToUser(rows[0]) : null
-}
+  const response = await fetchBackend(`/api/users/${id}`)
 
-export async function getUserByEmail(email: string): Promise<User | null> {
-  const { rows } = await pool.query<UserRow>(
-    "SELECT * FROM users WHERE email = $1",
-    [email]
-  )
-  return rows[0] ? rowToUser(rows[0]) : null
+  if (response.status === 404) {
+    return null
+  }
+
+  return response.ok ? readJson<User>(response) : null
 }

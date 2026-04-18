@@ -5,6 +5,8 @@ import { getAllCategories } from "@/lib/db"
 import { getAuthUserFromServer } from "@/lib/server-auth"
 import type { Category } from "@/lib/types"
 
+export const dynamic = "force-dynamic"
+
 // Страница "Мои публикации" (Практика 8: RBAC — доступна любому авторизованному пользователю)
 // Server Component: категории загружаются через HTTP GET к API.
 // Client Component MyArticlesCrud показывает и управляет только статьями текущего пользователя.

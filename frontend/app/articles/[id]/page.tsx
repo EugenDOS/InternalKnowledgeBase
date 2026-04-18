@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { getCategoryById, getUserById } from "@/lib/db"
 import type { Article, Category, User } from "@/lib/types"
 
+export const dynamic = "force-dynamic"
+
 // Страница конкретной статьи — динамический маршрут (Практика 3: динамические маршруты)
 // Практика 7: статья получается через HTTP GET /api/articles/:id
 // Дополнительные данные читаются напрямую на сервере из БД.
