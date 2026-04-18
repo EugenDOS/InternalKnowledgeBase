@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Header from "./header"
 import SidebarNav from "./sidebar-nav"
 
@@ -11,7 +11,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen flex-col">
-      <Header onToggleSidebar={() => setSidebarOpen(true)} />
+      <Suspense fallback={<div className="h-14 border-b border-border bg-card" />}>
+        <Header onToggleSidebar={() => setSidebarOpen(true)} />
+      </Suspense>
       <div className="flex flex-1 overflow-hidden">
         <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>

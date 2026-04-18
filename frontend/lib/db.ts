@@ -123,10 +123,8 @@ export async function searchArticles(query: string): Promise<Article[]> {
   const { rows } = await pool.query<ArticleRow>(
     `SELECT * FROM articles
      WHERE title ILIKE $1
-        OR excerpt ILIKE $1
-        OR $2 = ANY(tags)
      ORDER BY created_at DESC`,
-    [`%${query}%`, query.toLowerCase()]
+    [`%${query}%`]
   )
   return rows.map(rowToArticle)
 }
