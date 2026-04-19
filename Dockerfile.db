@@ -1,0 +1,3 @@
+FROM postgres:17-alpine
+
+COPY ./frontend/scripts/migrate.sql /docker-entrypoint-initdb.d/01-migrate.sql

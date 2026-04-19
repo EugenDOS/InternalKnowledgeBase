@@ -101,14 +101,16 @@
 ## Структура проекта
 ```text
 InternalKnowledgeBase/
-├─ frontend/   # Next.js frontend + proxy API + UI
-├─ backend/    # Spring Boot backend
-├─ docker-compose.yml
+├─ frontend/             # Next.js frontend + proxy API + UI
+├─ backend/              # Spring Boot backend
+├─ Dockerfile.db         # образ PostgreSQL с тестовыми данными
+├─ docker-compose-dev.yml
+├─ docker-compose-prod.yml
 └─ README.md
 ```
 
 ## Запуск и развёртывание
-### Рекомендуемый способ: Docker
+### Рекомендуемый способ для разработки: Docker Compose
 Проект рассчитан на запуск в трёх контейнерах:
 - `frontend`
 - `backend`
@@ -120,7 +122,7 @@ InternalKnowledgeBase/
 Из корня проекта:
 
 ```powershell
-docker-compose up --build -d
+docker compose -f docker-compose-dev.yml up --build -d
 ```
 
 После запуска будут доступны:
@@ -131,12 +133,12 @@ docker-compose up --build -d
 
 ### Остановка
 ```powershell
-docker-compose down
+docker compose -f docker-compose-dev.yml down
 ```
 
 ### Полный сброс с удалением данных БД
 ```powershell
-docker-compose down -v
+docker compose -f docker-compose-dev.yml down -v
 ```
 
 Это удалит volume `postgres_data`, и при следующем запуске база инициализируется заново из:
@@ -144,8 +146,83 @@ docker-compose down -v
 
 ### Повторный запуск без пересборки
 ```powershell
-docker-compose up -d
+docker compose -f docker-compose-dev.yml up -d
 ```
+
+## Публикация образов в Docker Hub
+Для production-режима используются готовые образы из Docker Hub:
+- `eugendos/knowledge-base-frontend:latest`
+- `eugendos/knowledge-base-backend:latest`
+- `eugendos/knowledge-base-postgres:latest`
+
+### 1. Авторизация в Docker Hub
+```powershell
+docker login
+```
+
+### 2. Создание buildx builder
+Команда выполняется один раз на машине сборки:
+
+```powershell
+docker buildx create --use --name multi-arch-builder
+```
+
+Если builder уже существует, можно просто активировать его:
+
+```powershell
+docker buildx use multi-arch-builder
+```
+
+### 3. Кроссплатформенная сборка и публикация frontend
+Из корня проекта:
+
+```powershell
+docker buildx build --platform linux/amd64,linux/arm64 -t eugendos/knowledge-base-frontend:latest ./frontend --push
+```
+
+### 4. Кроссплатформенная сборка и публикация backend
+Из корня проекта:
+
+```powershell
+docker buildx build --platform linux/amd64,linux/arm64 -t eugendos/knowledge-base-backend:latest ./backend --push
+```
+
+### 5. Кроссплатформенная сборка и публикация PostgreSQL с тестовыми данными
+Из корня проекта:
+
+```powershell
+docker buildx build --platform linux/amd64,linux/arm64 -t eugendos/knowledge-base-postgres:latest -f Dockerfile.db . --push
+```
+
+Этот образ нужен потому, что production-compose не использует локальный `migrate.sql`, а получает PostgreSQL уже со встроенным SQL-скриптом инициализации.
+
+## Production-запуск на другом устройстве
+Файл [docker-compose-prod.yml](/c:/Users/emche/Projects/InternalKnowledgeBase/docker-compose-prod.yml) рассчитан на запуск без исходного кода проекта, если образы уже опубликованы в Docker Hub.
+
+### Запуск
+На целевом устройстве достаточно иметь:
+- `docker-compose-prod.yml`
+- при необходимости `.env` с переопределёнными переменными окружения
+
+Команда запуска:
+
+```powershell
+docker compose -f docker-compose-prod.yml up -d
+```
+
+### Остановка
+```powershell
+docker compose -f docker-compose-prod.yml down
+```
+
+### Полный сброс БД
+```powershell
+docker compose -f docker-compose-prod.yml down -v
+```
+
+Важно:
+- тестовые данные из `Dockerfile.db` применяются только при первом старте на пустом volume;
+- если volume `postgres_data` уже существует, PostgreSQL не выполнит инициализацию повторно.
 
 ## Локальный запуск без Docker
 Этот вариант полезен для отладки по частям.
