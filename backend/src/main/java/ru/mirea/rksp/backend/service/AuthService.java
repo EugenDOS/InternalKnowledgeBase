@@ -16,9 +16,13 @@ import ru.mirea.rksp.backend.repository.UserRepository;
 
 import java.time.Instant;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 @Service
 public class AuthService {
+
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[A-Za-z0-9._-]{3,50}$");
 
     private final UserRepository userRepository;
     private final PasswordService passwordService;
@@ -62,12 +66,23 @@ public class AuthService {
         String username = requireText(request.username(), "Все поля обязательны");
         String fullName = requireText(request.fullName(), "Все поля обязательны");
 
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Некорректный email");
+        }
+
         if (password.length() < 6) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пароль должен содержать не менее 6 символов");
         }
 
-        if (username.length() < 3) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Имя пользователя должно содержать не менее 3 символов");
+        if (!USERNAME_PATTERN.matcher(username).matches()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Имя пользователя должно содержать 3-50 символов: латинские буквы, цифры, точку, дефис или подчеркивание"
+            );
+        }
+
+        if (fullName.length() < 3 || fullName.length() > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ФИО должно содержать от 3 до 100 символов");
         }
 
         if (userRepository.existsByEmail(email)) {

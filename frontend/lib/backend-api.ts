@@ -63,12 +63,23 @@ export async function proxyToBackend(request: Request, path: string): Promise<Re
       ? undefined
       : await request.text()
 
-  const backendResponse = await fetch(getBackendUrl(path), {
-    method: request.method,
-    headers,
-    body: body && body.length > 0 ? body : undefined,
-    cache: "no-store",
-  })
+  let backendResponse: Response
+
+  try {
+    backendResponse = await fetch(getBackendUrl(path), {
+      method: request.method,
+      headers,
+      body: body && body.length > 0 ? body : undefined,
+      cache: "no-store",
+    })
+  } catch {
+    return new Response(JSON.stringify({ message: "Сервис временно недоступен" }), {
+      status: 503,
+      headers: {
+        "content-type": "application/json",
+      },
+    })
+  }
 
   const responseHeaders = new Headers()
   const backendContentType = backendResponse.headers.get("content-type")

@@ -26,19 +26,31 @@ async function readJson<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>
 }
 
+async function withFallback<T>(action: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await action()
+  } catch {
+    return fallback
+  }
+}
+
 export async function getAllArticles(): Promise<Article[]> {
-  const response = await fetchBackend("/api/articles")
-  return response.ok ? readJson<Article[]>(response) : []
+  return withFallback(async () => {
+    const response = await fetchBackend("/api/articles")
+    return response.ok ? readJson<Article[]>(response) : []
+  }, [])
 }
 
 export async function getArticleById(id: string): Promise<Article | null> {
-  const response = await fetchBackend(`/api/articles/${id}`)
+  return withFallback(async () => {
+    const response = await fetchBackend(`/api/articles/${id}`)
 
-  if (response.status === 404) {
-    return null
-  }
+    if (response.status === 404) {
+      return null
+    }
 
-  return response.ok ? readJson<Article>(response) : null
+    return response.ok ? readJson<Article>(response) : null
+  }, null)
 }
 
 export async function getArticlesByCategory(categoryId: string): Promise<Article[]> {
@@ -48,8 +60,10 @@ export async function getArticlesByCategory(categoryId: string): Promise<Article
 
 export async function searchArticles(query: string): Promise<Article[]> {
   const searchParams = new URLSearchParams({ q: query })
-  const response = await fetchBackend(`/api/articles?${searchParams.toString()}`)
-  return response.ok ? readJson<Article[]>(response) : []
+  return withFallback(async () => {
+    const response = await fetchBackend(`/api/articles?${searchParams.toString()}`)
+    return response.ok ? readJson<Article[]>(response) : []
+  }, [])
 }
 
 export async function createArticle(
@@ -96,8 +110,10 @@ export async function deleteArticle(id: string): Promise<boolean> {
 }
 
 export async function getAllCategories(): Promise<Category[]> {
-  const response = await fetchBackend("/api/categories")
-  return response.ok ? readJson<Category[]>(response) : []
+  return withFallback(async () => {
+    const response = await fetchBackend("/api/categories")
+    return response.ok ? readJson<Category[]>(response) : []
+  }, [])
 }
 
 export async function getCategoryById(id: string): Promise<Category | null> {
@@ -106,31 +122,37 @@ export async function getCategoryById(id: string): Promise<Category | null> {
 }
 
 export async function getCategoryBySlug(slug: string): Promise<Category | null> {
-  const response = await fetchBackend(`/api/categories/${slug}`)
+  return withFallback(async () => {
+    const response = await fetchBackend(`/api/categories/${slug}`)
 
-  if (response.status === 404) {
-    return null
-  }
+    if (response.status === 404) {
+      return null
+    }
 
-  if (!response.ok) {
-    return null
-  }
+    if (!response.ok) {
+      return null
+    }
 
-  const data = await readJson<{ category: Category }>(response)
-  return data.category
+    const data = await readJson<{ category: Category }>(response)
+    return data.category
+  }, null)
 }
 
 export async function getAllUsers(): Promise<User[]> {
-  const response = await fetchBackend("/api/users")
-  return response.ok ? readJson<User[]>(response) : []
+  return withFallback(async () => {
+    const response = await fetchBackend("/api/users")
+    return response.ok ? readJson<User[]>(response) : []
+  }, [])
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const response = await fetchBackend(`/api/users/${id}`)
+  return withFallback(async () => {
+    const response = await fetchBackend(`/api/users/${id}`)
 
-  if (response.status === 404) {
-    return null
-  }
+    if (response.status === 404) {
+      return null
+    }
 
-  return response.ok ? readJson<User>(response) : null
+    return response.ok ? readJson<User>(response) : null
+  }, null)
 }

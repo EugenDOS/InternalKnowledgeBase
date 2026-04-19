@@ -9,19 +9,23 @@ async function getAuthUserByCookieHeader(cookieHeader: string | null | undefined
     return null
   }
 
-  const response = await fetch(getBackendUrl("/api/auth/me"), {
-    headers: {
-      cookie: cookieHeader,
-    },
-    cache: "no-store",
-  })
+  try {
+    const response = await fetch(getBackendUrl("/api/auth/me"), {
+      headers: {
+        cookie: cookieHeader,
+      },
+      cache: "no-store",
+    })
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null
+    }
+
+    const data = (await response.json()) as { user?: User }
+    return data.user ?? null
+  } catch {
     return null
   }
-
-  const data = (await response.json()) as { user?: User }
-  return data.user ?? null
 }
 
 export async function getAuthUserFromRequest(request: Request): Promise<User | null> {
