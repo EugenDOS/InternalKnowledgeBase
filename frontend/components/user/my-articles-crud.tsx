@@ -152,7 +152,6 @@ export default function MyArticlesCrud({ categories }: MyArticlesCrudProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Мои публикации</h2>
         <Button size="sm" className="gap-2" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Новая статья
