@@ -22,9 +22,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponseDto> getAllUsers(UserEntity currentUser) {
-        if (!"admin".equals(currentUser.getRole())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет прав доступа");
-        }
+        requireAdmin(currentUser);
 
         return userRepository.findAllByOrderByCreatedAtAsc().stream()
                 .map(ApiMapper::toUserDto)
@@ -32,10 +30,18 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserResponseDto getUserById(String id) {
+    public UserResponseDto getUserById(String id, UserEntity currentUser) {
+        requireAdmin(currentUser);
+
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Пользователь не найден"));
 
         return ApiMapper.toUserDto(user);
+    }
+
+    private void requireAdmin(UserEntity currentUser) {
+        if (!"admin".equals(currentUser.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Нет прав доступа");
+        }
     }
 }

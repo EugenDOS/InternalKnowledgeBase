@@ -113,6 +113,31 @@ class AccessControlTests {
     }
 
     @Test
+    void nonAdminCannotRequestUserById() {
+        UserEntity currentUser = createUser("user-1", "user");
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> userService.getUserById("user-2", currentUser)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verify(userRepository, never()).findById(any());
+    }
+
+    @Test
+    void adminCanRequestUserById() {
+        UserEntity admin = createUser("admin-1", "admin");
+        UserEntity requestedUser = createUser("user-2", "user");
+
+        when(userRepository.findById("user-2")).thenReturn(Optional.of(requestedUser));
+
+        var response = userService.getUserById("user-2", admin);
+
+        assertEquals("user-2", response.id());
+    }
+
+    @Test
     void adminCanReassignArticleAuthor() {
         UserEntity admin = createUser("admin-1", "admin");
         UserEntity originalAuthor = createUser("user-1", "user");

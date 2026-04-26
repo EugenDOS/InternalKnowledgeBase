@@ -4,14 +4,14 @@ import { ArrowLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { getCategoryById, getUserById } from "@/lib/db"
-import type { Article, Category, User } from "@/lib/types"
+import { getCategoryById } from "@/lib/db"
+import type { Article, Category } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
 // Страница конкретной статьи — динамический маршрут (Практика 3: динамические маршруты)
 // Практика 7: статья получается через HTTP GET /api/articles/:id
-// Дополнительные данные читаются напрямую на сервере из БД.
+// Дополнительные данные читаются через серверные helper-функции.
 
 interface ArticlePageProps {
   params: Promise<{ id: string }>
@@ -26,10 +26,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   if (!articleRes.ok) notFound()
   const article: Article = await articleRes.json()
 
-  const [category, author]: [Category | null, User | null] = await Promise.all([
-    getCategoryById(article.categoryId),
-    getUserById(article.authorId),
-  ])
+  const category: Category | null = await getCategoryById(article.categoryId)
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -57,7 +54,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                   </Link>
                 </span>
               )}
-              {author && <span>Автор: {author.fullName}</span>}
+              {article.authorFullName && <span>Автор: {article.authorFullName}</span>}
               <span>
                 Обновлено: {new Date(article.updatedAt).toLocaleDateString("ru-RU")}
               </span>

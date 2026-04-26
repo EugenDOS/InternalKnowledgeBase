@@ -9,6 +9,7 @@ public record ArticleResponseDto(
         String excerpt,
         String categoryId,
         String authorId,
+        String authorFullName,
         List<String> tags,
         String createdAt,
         String updatedAt

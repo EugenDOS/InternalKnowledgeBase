@@ -31,7 +31,8 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public UserResponseDto getById(@PathVariable String id) {
-        return userService.getUserById(id);
+    public UserResponseDto getById(@PathVariable String id, HttpServletRequest request) {
+        UserEntity currentUser = authService.requireCurrentUser(request);
+        return userService.getUserById(id, currentUser);
     }
 }

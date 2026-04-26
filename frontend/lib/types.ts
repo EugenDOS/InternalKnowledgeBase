@@ -34,6 +34,7 @@ export interface Article {
   excerpt: string
   categoryId: string
   authorId: string
+  authorFullName?: string
   tags: string[]
   createdAt: string
   updatedAt: string

@@ -48,6 +48,7 @@ public final class ApiMapper {
                 article.getExcerpt(),
                 article.getCategory().getId(),
                 article.getAuthor().getId(),
+                article.getAuthor().getFullName(),
                 tags,
                 article.getCreatedAt().toString(),
                 article.getUpdatedAt().toString()
