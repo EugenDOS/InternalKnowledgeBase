@@ -34,6 +34,9 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
+      - name: Run frontend tests with coverage
+        run: npm test
+
       - name: Build frontend
         run: npm run build
 
@@ -61,8 +64,8 @@ jobs:
       - name: Normalize Gradle wrapper line endings
         run: sed -i 's/\r$//' gradlew
 
-      - name: Run backend tests
-        run: ./gradlew test
+      - name: Run backend tests and coverage checks
+        run: ./gradlew check
 
   docker-build-test:
     runs-on: ubuntu-latest

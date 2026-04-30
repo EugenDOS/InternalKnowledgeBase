@@ -138,6 +138,32 @@ class AccessControlTests {
     }
 
     @Test
+    void adminCanRequestUserList() {
+        UserEntity admin = createUser("admin-1", "admin");
+        UserEntity firstUser = createUser("user-1", "user");
+        UserEntity secondUser = createUser("user-2", "user");
+
+        when(userRepository.findAllByOrderByCreatedAtAsc()).thenReturn(List.of(firstUser, secondUser));
+
+        var response = userService.getAllUsers(admin);
+
+        assertEquals(List.of("user-1", "user-2"), response.stream().map(item -> item.id()).toList());
+    }
+
+    @Test
+    void adminUserByIdReturnsNotFoundForMissingUser() {
+        UserEntity admin = createUser("admin-1", "admin");
+        when(userRepository.findById("missing")).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> userService.getUserById("missing", admin)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+    @Test
     void adminCanReassignArticleAuthor() {
         UserEntity admin = createUser("admin-1", "admin");
         UserEntity originalAuthor = createUser("user-1", "user");

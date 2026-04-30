@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.13'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'jacoco'
 }
 
 group = 'ru.mirea.rksp'
@@ -32,4 +33,50 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    finalizedBy tasks.named('jacocoTestReport')
+}
+
+jacoco {
+    toolVersion = '0.8.13'
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
+
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.register('jacocoCriticalCoverageVerification', JacocoCoverageVerification) {
+    dependsOn tasks.named('test')
+
+    executionData.from(fileTree(layout.buildDirectory).include('/jacoco/test.exec'))
+    sourceDirectories.from(files('src/main/java'))
+    classDirectories.from(files(layout.buildDirectory.dir('classes/java/main')).asFileTree.matching {
+        include 'ru/mirea/rksp/backend/service/UserService.class'
+        include 'ru/mirea/rksp/backend/service/CategoryService.class'
+        include 'ru/mirea/rksp/backend/mapper/ApiMapper.class'
+        include 'ru/mirea/rksp/backend/exception/GlobalExceptionHandler.class'
+    })
+
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 1.0
+            }
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 1.0
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('jacocoCriticalCoverageVerification')
 }

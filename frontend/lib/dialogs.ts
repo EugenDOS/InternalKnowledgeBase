@@ -177,13 +177,6 @@ function formatThreadTimestamp(date: Date): string {
   return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
-function formatMessageTimestamp(date: Date): string {
-  return date.toLocaleTimeString("ru-RU", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-}
-
 function canUseStorage(): boolean {
   return typeof window !== "undefined"
 }
