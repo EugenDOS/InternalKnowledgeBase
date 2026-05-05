@@ -118,14 +118,14 @@ InternalKnowledgeBase/
 
 База данных хранит данные в `volume`, поэтому при обычном перезапуске контейнеров данные сохраняются.
 
-### Первый запуск
+### Первый локальный запуск
 Из корня проекта:
 
 ```powershell
 docker compose -f docker-compose-dev.yml up --build -d
 ```
 
-После запуска будут доступны:
+После запуска локального dev-окружения будут доступны:
 - frontend: `http://localhost:3000`
 - backend: `http://localhost:8080`
 
@@ -204,10 +204,27 @@ docker buildx build --platform linux/amd64,linux/arm64 -t eugendos/knowledge-bas
 - `docker-compose-prod.yml`
 - при необходимости `.env` с переопределёнными переменными окружения
 
+Для облачного запуска на стандартном HTTP-порту создайте рядом с `docker-compose-prod.yml` файл `.env`:
+
+```env
+FRONTEND_PORT=80
+NEXT_PUBLIC_BASE_URL=http://<server-ip-or-domain>
+APP_CORS_ALLOWED_ORIGINS=http://<server-ip-or-domain>
+APP_AUTH_SECRET=<strong-random-secret>
+```
+
+В production-режиме браузер обращается к frontend через порт `80`, а не к локальному `localhost:3000`. Внутри Docker-сети frontend по-прежнему работает на порту `3000`, backend — на `8080`, PostgreSQL доступен только backend-контейнеру.
+
 Команда запуска:
 
 ```powershell
 docker compose -f docker-compose-prod.yml up -d
+```
+
+После запуска приложение доступно по адресу:
+
+```text
+http://<server-ip-or-domain>
 ```
 
 ### Остановка
@@ -222,7 +239,23 @@ docker compose -f docker-compose-prod.yml down -v
 
 Важно:
 - тестовые данные из `Dockerfile.db` применяются только при первом старте на пустом volume;
-- если volume `postgres_data` уже существует, PostgreSQL не выполнит инициализацию повторно.
+- если volume `postgres_data` уже существует, PostgreSQL не выполнит инициализацию повторно;
+- порт `3000` используется для локальной разработки, а публичное облачное развёртывание выполняется через `FRONTEND_PORT=80`.
+
+### Облачное развёртывание
+Итоговая production-схема проверена на арендованном VPS под управлением `Ubuntu 24.04 LTS` с установленными `Docker` и `Docker Compose`. В отчёте для демонстрации использовался VPS-провайдер `Beget`, но конфигурация не привязана к конкретной площадке. Для развёртывания используются опубликованные Docker Hub-образы frontend, backend и PostgreSQL; исходный код проекта на сервере не требуется.
+
+Облачный запуск выполняется командой:
+
+```bash
+docker compose -f docker-compose-prod.yml up -d
+```
+
+Сервисная схема:
+- `frontend` публикуется наружу на `80` порт;
+- `backend` доступен только во внутренней Docker-сети для frontend;
+- `PostgreSQL` не публикуется на внешний интерфейс и доступен только backend;
+- данные БД сохраняются в Docker volume `postgres_data`.
 
 ## CI на GitHub Actions
 В проекте настроен базовый `CI` через GitHub Actions.  
