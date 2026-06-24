@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import ProtectedRoute from "@/components/auth/protected-route"
 import MyArticlesCrud from "@/components/user/my-articles-crud"
-import { getAllCategories } from "@/lib/db"
+import { getAllCategories } from "@/lib/backend-data"
 import { getAuthUserFromServer } from "@/lib/server-auth"
 import type { Category } from "@/lib/types"
 

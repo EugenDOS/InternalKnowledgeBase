@@ -1,5 +1,5 @@
 import DialogsPageView from "@/components/dialogs/dialogs-page-view"
-import { getAllArticles } from "@/lib/db"
+import { getAllArticles } from "@/lib/backend-data"
 import { dialogThreads } from "@/lib/dialogs"
 
 export const dynamic = "force-dynamic"

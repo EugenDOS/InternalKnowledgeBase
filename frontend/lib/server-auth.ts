@@ -2,7 +2,7 @@ import "server-only"
 
 import { cookies } from "next/headers"
 import type { User } from "@/lib/types"
-import { getBackendUrl } from "@/lib/backend-api"
+import { getBackendCookieName, getBackendUrl } from "@/lib/backend-api"
 
 async function getAuthUserByCookieHeader(cookieHeader: string | null | undefined): Promise<User | null> {
   if (!cookieHeader) {
@@ -34,7 +34,7 @@ export async function getAuthUserFromRequest(request: Request): Promise<User | n
 
 export async function getAuthUserFromServer(): Promise<User | null> {
   const cookieStore = await cookies()
-  const cookieName = process.env.BACKEND_AUTH_COOKIE_NAME ?? "knowledge-base-session"
+  const cookieName = getBackendCookieName()
   const authCookie = cookieStore.get(cookieName)
   const cookieHeader = authCookie
     ? `${authCookie.name}=${encodeURIComponent(authCookie.value)}`

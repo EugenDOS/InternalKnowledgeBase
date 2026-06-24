@@ -35,7 +35,7 @@ public class UserEntity {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(name = "password_hash")
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
     @Column(name = "created_at", nullable = false)

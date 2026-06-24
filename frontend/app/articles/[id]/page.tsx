@@ -4,8 +4,8 @@ import { ArrowLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { getCategoryById } from "@/lib/db"
-import type { Article, Category } from "@/lib/types"
+import { getArticleById, getCategoryById } from "@/lib/backend-data"
+import type { Category } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
@@ -19,12 +19,8 @@ interface ArticlePageProps {
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { id } = await params
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
-
-  // HTTP GET /api/articles/:id
-  const articleRes = await fetch(`${base}/api/articles/${id}`, { cache: "no-store" })
-  if (!articleRes.ok) notFound()
-  const article: Article = await articleRes.json()
+  const article = await getArticleById(id)
+  if (!article) notFound()
 
   const category: Category | null = await getCategoryById(article.categoryId)
 

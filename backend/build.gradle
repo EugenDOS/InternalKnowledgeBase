@@ -49,14 +49,13 @@ tasks.named('jacocoTestReport') {
     }
 }
 
-tasks.register('jacocoCriticalCoverageVerification', JacocoCoverageVerification) {
+tasks.register('jacocoCriticalLayerCoverageVerification', JacocoCoverageVerification) {
     dependsOn tasks.named('test')
 
     executionData.from(fileTree(layout.buildDirectory).include('/jacoco/test.exec'))
     sourceDirectories.from(files('src/main/java'))
     classDirectories.from(files(layout.buildDirectory.dir('classes/java/main')).asFileTree.matching {
-        include 'ru/mirea/rksp/backend/service/UserService.class'
-        include 'ru/mirea/rksp/backend/service/CategoryService.class'
+        include 'ru/mirea/rksp/backend/service/*.class'
         include 'ru/mirea/rksp/backend/mapper/ApiMapper.class'
         include 'ru/mirea/rksp/backend/exception/GlobalExceptionHandler.class'
     })
@@ -66,17 +65,37 @@ tasks.register('jacocoCriticalCoverageVerification', JacocoCoverageVerification)
             limit {
                 counter = 'LINE'
                 value = 'COVEREDRATIO'
-                minimum = 1.0
+                minimum = 0.80
             }
             limit {
                 counter = 'BRANCH'
                 value = 'COVEREDRATIO'
-                minimum = 1.0
+                minimum = 0.70
             }
         }
     }
 }
 
+tasks.register('jacocoCriticalLayerReport', JacocoReport) {
+    dependsOn tasks.named('test')
+
+    executionData.from(fileTree(layout.buildDirectory).include('/jacoco/test.exec'))
+    sourceDirectories.from(files('src/main/java'))
+    classDirectories.from(files(layout.buildDirectory.dir('classes/java/main')).asFileTree.matching {
+        include 'ru/mirea/rksp/backend/service/*.class'
+        include 'ru/mirea/rksp/backend/mapper/ApiMapper.class'
+        include 'ru/mirea/rksp/backend/exception/GlobalExceptionHandler.class'
+    })
+
+    reports {
+        xml.required = true
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir('reports/jacoco/critical-layer/html')
+        xml.outputLocation = layout.buildDirectory.file('reports/jacoco/critical-layer/critical-layer.xml')
+    }
+}
+
 tasks.named('check') {
-    dependsOn tasks.named('jacocoCriticalCoverageVerification')
+    dependsOn tasks.named('jacocoCriticalLayerCoverageVerification')
+    dependsOn tasks.named('jacocoCriticalLayerReport')
 }

@@ -2,8 +2,8 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { Article, Category } from "@/lib/types"
 import ArticleList from "@/components/articles/article-list"
+import { getArticlesByCategory, getCategoryBySlug } from "@/lib/backend-data"
 
 export const dynamic = "force-dynamic"
 
@@ -16,14 +16,10 @@ interface CategoryPageProps {
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
+  const category = await getCategoryBySlug(slug)
+  if (!category) notFound()
 
-  // HTTP GET /api/categories/:slug — возвращает { category, articles }
-  const res = await fetch(`${base}/api/categories/${slug}`, { cache: "no-store" })
-  if (!res.ok) notFound()
-
-  const { category, articles }: { category: Category; articles: Article[] } =
-    await res.json()
+  const articles = await getArticlesByCategory(category.id)
 
   return (
     <div className="flex flex-col gap-6">

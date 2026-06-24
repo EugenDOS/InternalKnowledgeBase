@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import type { Category, User } from "@/lib/types"
 import ProtectedRoute from "@/components/auth/protected-route"
 import ArticlesCrud from "@/components/admin/articles-crud"
-import { getAllCategories, getAllUsers } from "@/lib/db"
+import { getAllCategories, getAllUsers } from "@/lib/backend-data"
 import { getAuthUserFromServer } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"

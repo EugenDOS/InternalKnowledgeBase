@@ -1,4 +1,8 @@
-const baseUrl = (process.env.FRONTEND_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "")
+if (!process.env.FRONTEND_BASE_URL) {
+  throw new Error("FRONTEND_BASE_URL must be configured")
+}
+
+const baseUrl = process.env.FRONTEND_BASE_URL.replace(/\/$/, "")
 
 const interestingValues = [
   "",

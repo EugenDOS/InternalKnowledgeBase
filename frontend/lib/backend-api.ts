@@ -4,12 +4,21 @@ function normalizeBaseUrl(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value
 }
 
-function getBackendCookieName(): string {
-  return process.env.BACKEND_AUTH_COOKIE_NAME ?? "knowledge-base-session"
+function getRequiredEnvironmentVariable(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(`${name} must be configured`)
+  }
+
+  return value
+}
+
+export function getBackendCookieName(): string {
+  return getRequiredEnvironmentVariable("BACKEND_AUTH_COOKIE_NAME")
 }
 
 export function getBackendBaseUrl(): string {
-  return normalizeBaseUrl(process.env.BACKEND_INTERNAL_URL ?? "http://localhost:8080")
+  return normalizeBaseUrl(getRequiredEnvironmentVariable("BACKEND_INTERNAL_URL"))
 }
 
 export function getBackendUrl(path: string): string {

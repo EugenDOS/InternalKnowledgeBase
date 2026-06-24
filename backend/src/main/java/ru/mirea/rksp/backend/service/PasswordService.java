@@ -27,22 +27,22 @@ public class PasswordService {
     }
 
     public boolean matches(String rawPassword, String storedPasswordHash) {
-        if (storedPasswordHash == null || storedPasswordHash.isBlank()) {
+        if (rawPassword == null || storedPasswordHash == null || storedPasswordHash.isBlank()) {
             return false;
         }
 
         try {
-            if (isLegacyHash(storedPasswordHash)) {
-                return storedPasswordHash.equals(rawPassword);
-            }
-
-            String[] parts = storedPasswordHash.split(":");
+            String[] parts = storedPasswordHash.split(":", -1);
             if (parts.length != 2) {
                 return false;
             }
 
             byte[] salt = hexFormat.parseHex(parts[0]);
             byte[] expectedHash = hexFormat.parseHex(parts[1]);
+            if (salt.length != SALT_LENGTH || expectedHash.length != KEY_LENGTH / Byte.SIZE) {
+                return false;
+            }
+
             byte[] actualHash = deriveKey(rawPassword, salt);
 
             return MessageDigest.isEqual(expectedHash, actualHash);
@@ -51,17 +51,15 @@ public class PasswordService {
         }
     }
 
-    public boolean isLegacyHash(String storedPasswordHash) {
-        return storedPasswordHash != null && !storedPasswordHash.contains(":");
-    }
-
     private byte[] deriveKey(String password, byte[] salt) {
+        PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
         try {
-            PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
             SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
             return factory.generateSecret(spec).getEncoded();
         } catch (Exception exception) {
             throw new IllegalStateException("Не удалось вычислить хэш пароля", exception);
+        } finally {
+            spec.clearPassword();
         }
     }
 }

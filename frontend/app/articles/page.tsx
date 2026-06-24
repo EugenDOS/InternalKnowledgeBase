@@ -1,4 +1,4 @@
-import { getAllArticles, searchArticles } from "@/lib/db"
+import { getAllArticles, searchArticles } from "@/lib/backend-data"
 import type { Article } from "@/lib/types"
 import ArticleList from "@/components/articles/article-list"
 

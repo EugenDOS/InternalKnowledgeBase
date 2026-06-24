@@ -3,17 +3,18 @@ services:
     image: postgres:17-alpine
     container_name: knowledge-base-postgres
     restart: unless-stopped
+    command: ["postgres", "-p", "${POSTGRES_PORT:?Set POSTGRES_PORT in .env}"]
     environment:
-      POSTGRES_DB: knowledge_base
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./frontend/scripts/migrate.sql:/docker-entrypoint-initdb.d/01-migrate.sql:ro
+      - ./database/migrations/001-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     networks:
       - backend_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d knowledge_base"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -p ${POSTGRES_PORT:?Set POSTGRES_PORT in .env}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -29,15 +30,17 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      SERVER_PORT: 8080
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/knowledge_base
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      APP_AUTH_SECRET: knowledge-base-demo-secret
-      APP_AUTH_COOKIE_NAME: knowledge-base-session
-      APP_CORS_ALLOWED_ORIGINS: http://localhost:3000,http://frontend:3000
+      SERVER_PORT: ${BACKEND_PORT:?Set BACKEND_PORT in .env}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:${POSTGRES_PORT:?Set POSTGRES_PORT in .env}/${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      APP_AUTH_SECRET: ${APP_AUTH_SECRET:?Set APP_AUTH_SECRET in .env}
+      APP_AUTH_COOKIE_NAME: ${APP_AUTH_COOKIE_NAME:?Set APP_AUTH_COOKIE_NAME in .env}
+      APP_AUTH_COOKIE_MAX_AGE: ${APP_AUTH_COOKIE_MAX_AGE:?Set APP_AUTH_COOKIE_MAX_AGE in .env}
+      APP_AUTH_SECURE_COOKIE: ${APP_AUTH_SECURE_COOKIE:?Set APP_AUTH_SECURE_COOKIE in .env}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:?Set APP_CORS_ALLOWED_ORIGINS in .env}
     ports:
-      - "8080:8080"
+      - "${BACKEND_HOST_PORT:?Set BACKEND_HOST_PORT in .env}:${BACKEND_PORT:?Set BACKEND_PORT in .env}"
     networks:
       - frontend_network
       - backend_network
@@ -52,12 +55,11 @@ services:
       - backend
     environment:
       NODE_ENV: production
-      PORT: 3000
-      NEXT_PUBLIC_BASE_URL: http://localhost:3000
-      BACKEND_INTERNAL_URL: http://backend:8080
-      BACKEND_AUTH_COOKIE_NAME: knowledge-base-session
+      PORT: ${FRONTEND_CONTAINER_PORT:?Set FRONTEND_CONTAINER_PORT in .env}
+      BACKEND_INTERNAL_URL: http://backend:${BACKEND_PORT:?Set BACKEND_PORT in .env}
+      BACKEND_AUTH_COOKIE_NAME: ${APP_AUTH_COOKIE_NAME:?Set APP_AUTH_COOKIE_NAME in .env}
     ports:
-      - "3000:3000"
+      - "${FRONTEND_HOST_PORT:?Set FRONTEND_HOST_PORT in .env}:${FRONTEND_CONTAINER_PORT:?Set FRONTEND_CONTAINER_PORT in .env}"
     networks:
       - frontend_network
 

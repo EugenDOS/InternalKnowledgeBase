@@ -50,11 +50,6 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Неверный email или пароль");
         }
 
-        if (passwordService.isLegacyHash(user.getPasswordHash())) {
-            user.setPasswordHash(passwordService.hashPassword(password));
-            userRepository.save(user);
-        }
-
         sessionCookieService.writeAuthCookie(response, user.getId());
         return new AuthResponseDto(ApiMapper.toUserDto(user));
     }

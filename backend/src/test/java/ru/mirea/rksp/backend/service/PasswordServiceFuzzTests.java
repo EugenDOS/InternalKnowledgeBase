@@ -42,6 +42,18 @@ class PasswordServiceFuzzTests {
     }
 
     @Test
+    void precomputedSeedHashesMatchDemoPasswords() {
+        assertTrue(passwordService.matches(
+                "admin123",
+                "07470c7ff72240532c18ea9b0bb523b8:534f08ff1450eb3519474e45bc3fa78a6019bab225eef9fd8ef9cbca125f0bd3"
+        ));
+        assertTrue(passwordService.matches(
+                "user123",
+                "5b9bcb1bd7d501ef1b05acc514b8294a:84785591a36eed11d38366e5c63c2f87512bf3330347976c9300e0d8aac3966a"
+        ));
+    }
+
+    @Test
     void malformedHashesDoNotCrashMatcher() {
         String[] malformedHashes = {
                 null,
@@ -58,6 +70,10 @@ class PasswordServiceFuzzTests {
         for (String malformedHash : malformedHashes) {
             assertFalse(passwordService.matches("test-password", malformedHash));
         }
+
+        assertFalse(passwordService.matches(null, passwordService.hashPassword("test-password")));
+        assertFalse(passwordService.matches("admin123", "admin123"));
+        assertFalse(passwordService.matches("test-password", "00:00"));
     }
 
     private String randomString(int length) {

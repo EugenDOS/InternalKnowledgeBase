@@ -1,21 +1,14 @@
 import Link from "next/link"
 import { FileText, FolderOpen } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { Article, Category } from "@/lib/types"
+import { getAllArticles, getAllCategories } from "@/lib/backend-data"
 
 export const dynamic = "force-dynamic"
 
 async function getHomeData() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
-
-  const [articlesRes, categoriesRes] = await Promise.all([
-    fetch(`${base}/api/articles`, { cache: "no-store" }),
-    fetch(`${base}/api/categories`, { cache: "no-store" }),
-  ])
-
-  const [articles, categories]: [Article[], Category[]] = await Promise.all([
-    articlesRes.ok ? articlesRes.json() : [],
-    categoriesRes.ok ? categoriesRes.json() : [],
+  const [articles, categories] = await Promise.all([
+    getAllArticles(),
+    getAllCategories(),
   ])
 
   return { articles, categories }

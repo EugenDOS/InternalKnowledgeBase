@@ -1,5 +1,5 @@
-import type { Category } from "@/lib/types"
 import CategoryCard from "@/components/categories/category-card"
+import { getAllCategories } from "@/lib/backend-data"
 
 export const dynamic = "force-dynamic"
 
@@ -7,9 +7,7 @@ export const dynamic = "force-dynamic"
 // Практика 7: данные получаются через HTTP GET /api/categories
 
 export default async function CategoriesPage() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
-  const res = await fetch(`${base}/api/categories`, { cache: "no-store" })
-  const categories: Category[] = res.ok ? await res.json() : []
+  const categories = await getAllCategories()
 
   return (
     <div className="flex flex-col gap-6">

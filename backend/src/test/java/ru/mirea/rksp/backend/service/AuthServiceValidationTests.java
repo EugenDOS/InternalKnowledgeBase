@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.server.ResponseStatusException;
 import ru.mirea.rksp.backend.dto.auth.LoginRequestDto;
 import ru.mirea.rksp.backend.dto.auth.RegisterRequestDto;
@@ -16,6 +18,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -146,14 +149,7 @@ class AuthServiceValidationTests {
 
     @Test
     void loginRejectsWrongPassword() {
-        UserEntity user = new UserEntity();
-        user.setId("user-1");
-        user.setEmail("test@company.ru");
-        user.setUsername("tester");
-        user.setFullName("Test User");
-        user.setRole("user");
-        user.setPasswordHash("hash");
-        user.setCreatedAt(Instant.now());
+        UserEntity user = createUser();
 
         when(userRepository.findByEmail("test@company.ru")).thenReturn(Optional.of(user));
         when(passwordService.matches("wrong-password", "hash")).thenReturn(false);
@@ -167,5 +163,120 @@ class AuthServiceValidationTests {
         );
 
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    }
+
+    @Test
+    void loginRejectsMissingUser() {
+        when(userRepository.findByEmail("missing@company.ru")).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> authService.login(
+                        new LoginRequestDto("MISSING@company.ru", "password123"),
+                        new MockHttpServletResponse()
+                )
+        );
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    }
+
+    @Test
+    void loginSucceedsWithoutRewritingStoredHash() {
+        UserEntity user = createUser();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        when(userRepository.findByEmail("test@company.ru")).thenReturn(Optional.of(user));
+        when(passwordService.matches("password123", user.getPasswordHash())).thenReturn(true);
+
+        var result = authService.login(
+                new LoginRequestDto(" TEST@company.ru ", " password123 "),
+                response
+        );
+
+        assertEquals("user-1", result.user().id());
+        verify(sessionCookieService).writeAuthCookie(response, "user-1");
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void registerRejectsBlankFieldsAndInvalidFullName() {
+        ResponseStatusException blank = assertThrows(
+                ResponseStatusException.class,
+                () -> authService.register(new RegisterRequestDto(null, "password123", "tester", "Test User"))
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, blank.getStatusCode());
+
+        ResponseStatusException shortName = assertThrows(
+                ResponseStatusException.class,
+                () -> authService.register(new RegisterRequestDto(
+                        "test@company.ru",
+                        "password123",
+                        "tester",
+                        "X"
+                ))
+        );
+        assertEquals(HttpStatus.BAD_REQUEST, shortName.getStatusCode());
+    }
+
+    @Test
+    void registerRejectsDuplicateUsername() {
+        when(userRepository.existsByUsername("tester")).thenReturn(true);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> authService.register(new RegisterRequestDto(
+                        "test@company.ru",
+                        "password123",
+                        "tester",
+                        "Test User"
+                ))
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+    }
+
+    @Test
+    void currentUserLookupCoversSuccessAndAuthenticationFailures() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        doReturn(Optional.empty()).when(sessionCookieService).readUserId(request);
+
+        ResponseStatusException noSession = assertThrows(
+                ResponseStatusException.class,
+                () -> authService.requireCurrentUser(request)
+        );
+        assertEquals(HttpStatus.UNAUTHORIZED, noSession.getStatusCode());
+
+        doReturn(Optional.of("missing")).when(sessionCookieService).readUserId(request);
+        when(userRepository.findById("missing")).thenReturn(Optional.empty());
+        ResponseStatusException missingUser = assertThrows(
+                ResponseStatusException.class,
+                () -> authService.requireCurrentUser(request)
+        );
+        assertEquals(HttpStatus.UNAUTHORIZED, missingUser.getStatusCode());
+
+        UserEntity user = createUser();
+        doReturn(Optional.of("user-1")).when(sessionCookieService).readUserId(request);
+        when(userRepository.findById("user-1")).thenReturn(Optional.of(user));
+
+        assertEquals("user-1", authService.getCurrentUserResponse(request).user().id());
+    }
+
+    @Test
+    void logoutClearsSessionCookie() {
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        assertEquals(true, authService.logout(response).success());
+        verify(sessionCookieService).clearAuthCookie(response);
+    }
+
+    private UserEntity createUser() {
+        UserEntity user = new UserEntity();
+        user.setId("user-1");
+        user.setEmail("test@company.ru");
+        user.setUsername("tester");
+        user.setFullName("Test User");
+        user.setRole("user");
+        user.setPasswordHash("salt:hash");
+        user.setCreatedAt(Instant.now());
+        return user;
     }
 }

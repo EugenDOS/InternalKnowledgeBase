@@ -20,6 +20,8 @@ import java.util.Optional;
 @Service
 public class SessionCookieService {
 
+    private static final int MINIMUM_SECRET_LENGTH = 32;
+
     private final ObjectMapper objectMapper;
     private final String secret;
     private final String cookieName;
@@ -33,6 +35,15 @@ public class SessionCookieService {
             @Value("${app.auth.cookie-max-age}") long cookieMaxAge,
             @Value("${app.auth.secure-cookie}") boolean secureCookie
     ) {
+        if (secret == null
+                || secret.length() < MINIMUM_SECRET_LENGTH
+                || secret.startsWith("replace-")
+                || secret.contains("change-me")) {
+            throw new IllegalArgumentException(
+                    "APP_AUTH_SECRET должен быть случайным значением длиной не менее 32 символов"
+            );
+        }
+
         this.objectMapper = objectMapper;
         this.secret = secret;
         this.cookieName = cookieName;
